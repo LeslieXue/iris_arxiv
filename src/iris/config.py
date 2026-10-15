@@ -36,6 +36,7 @@ class ModelConfig(BaseModel):
     dropout: float
     output_dim: int
     query_ini_random: bool
+    auto_device_map: bool = True
     device: str = "cpu"
 
 

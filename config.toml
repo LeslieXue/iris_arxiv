@@ -39,6 +39,7 @@ hidden_dim = 512
 dropout = 0.1
 output_dim = 0           # inferred at run time
 query_ini_random = false
+auto_device_map = true
 
 [optimizer]
 lr = 1e-3

@@ -41,7 +41,7 @@ def make_batch_df(batch, model):
             columns.append(metadata_column)
 
     columns.append("vector")
-    
+
     df = pl.DataFrame(batch).select(columns)
     return df
 
@@ -63,15 +63,28 @@ def make_encoder(cfg: Config):
             device_map="auto",
             tp_plan="auto",
         )
+    elif cfg.model.auto_device_map:
+        encoder = AutoModel.from_pretrained(
+            cfg.model_id,
+            torch_dtype="auto",
+            device_map="auto",
+        )
     else:
         encoder = AutoModel.from_pretrained(
-            cfg.model_id, torch_dtype="auto", device_map="auto"
+            cfg.model_id,
+            torch_dtype="auto",
         )
+
     if cfg.compile:
         encoder.forward = torch.compile(
-            encoder.forward, mode="reduce-overhead", fullgraph=True
+            encoder.forward,
+            mode="reduce-overhead",
+            fullgraph=True,
         )
-    encoder.to(cfg.model.device)
+
+    if not cfg.quantize and not cfg.model.auto_device_map:
+        encoder.to(cfg.model.device)
+
     return encoder
 
 
