@@ -98,10 +98,21 @@ def chunk_batch(batch, pad_id: int, cfg: DatasetConfig) -> dict:
         "label": [],
         "chunk_id": [],
         "offset": [],
+        "chunk_text": [],
     }
-    for idx, (input_ids, attention_mask) in enumerate(
-        zip(batch["input_ids"], batch["attention_mask"])
-    ):
+
+    has_source_path = "source_path" in batch
+    if has_source_path:
+        result["source_path"] = []
+
+    rows = zip(
+        batch["text"],
+        batch["input_ids"],
+        batch["attention_mask"],
+        batch["offset_mapping"],
+    )
+
+    for idx, (text, input_ids, attention_mask, token_offsets) in enumerate(rows):
         chunks, masks, offsets = make_chunks(
             input_ids,
             attention_mask,
@@ -109,23 +120,57 @@ def chunk_batch(batch, pad_id: int, cfg: DatasetConfig) -> dict:
             overlap=cfg.overlap,
             pad_id=pad_id,
         )
-        for chunk_idx, (chunk, mask, offset) in enumerate(zip(chunks, masks, offsets)):
+
+        for chunk_idx, (chunk, mask, offset) in enumerate(
+            zip(chunks, masks, offsets)
+        ):
+            chunk_offsets = token_offsets[offset : offset + cfg.chunk_length]
+
+            valid_offsets = [
+                (char_start, char_end)
+                for char_start, char_end in chunk_offsets
+                if char_end > char_start
+            ]
+
+            # Special tokens such as BOS/EOS have offsets (0, 0).
+            # Do not create a vector chunk if it contains no source text.
+            if not valid_offsets:
+                continue
+
+            char_start = valid_offsets[0][0]
+            char_end = valid_offsets[-1][1]
+            chunk_text = text[char_start:char_end]
+
             result["input_ids"].append(chunk)
             result["attention_mask"].append(mask)
             result["id"].append(batch["id"][idx])
             result["label"].append(batch["label"][idx])
             result["chunk_id"].append(chunk_idx)
             result["offset"].append(offset)
+            result["chunk_text"].append(chunk_text)
+
+            if has_source_path:
+                result["source_path"].append(batch["source_path"][idx])
+
     return result
 
 
-def tokenize(batch, tokenizer) -> AutoTokenizer:
-    return tokenizer(batch["text"])
+def tokenize(batch, tokenizer):
+    return tokenizer(
+        batch["text"],
+        return_offsets_mapping=True,
+    )
 
 
 def make_dataset(in_file: str, cfg: Config) -> Dataset:
     make_df = get_df_fn(name=in_file)
-    df = make_df(cfg.dataset.in_path / in_file).select("id", "label", "text")
+    df = make_df(cfg.dataset.in_path / in_file)
+
+    columns = ["id", "label", "text"]
+    if "source_path" in df.columns:
+        columns.append("source_path")
+
+    df = df.select(columns)
     if cfg.fast_dev_run:
         df = df.head(10)
     dataset = Dataset.from_polars(df)
