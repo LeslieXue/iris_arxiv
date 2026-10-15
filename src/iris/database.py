@@ -34,7 +34,14 @@ def make_batch_df(batch, model):
     output = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
     batch["vector"] = masked_mean_pool(output, batch["attention_mask"])
     batch = tensors_to_numpy(batch)
-    columns = ["id", "chunk_id", "offset", "label", "vector"]
+    columns = ["id", "chunk_id", "offset", "label"]
+
+    for metadata_column in ("source_path", "chunk_text"):
+        if metadata_column in batch:
+            columns.append(metadata_column)
+
+    columns.append("vector")
+    
     df = pl.DataFrame(batch).select(columns)
     return df
 
