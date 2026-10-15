@@ -112,7 +112,7 @@ class Config(BaseModel):
         self.model.device = device
 
 
-def get_config():
-    with open("config.toml", "rb") as f:
+def get_config(path: str | Path = "config.toml"):
+    with open(path, "rb") as f:
         config_data = tomllib.load(f)
     return Config(**config_data)

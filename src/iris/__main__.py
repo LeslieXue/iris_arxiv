@@ -1,6 +1,6 @@
 import os
 from typing import cast
-
+import argparse
 import lancedb
 import polars as pl
 import torch
@@ -17,9 +17,18 @@ from iris.tune import tune
 # TODO pip install --upgrade transformers accelerate bitsandbytes
 # TODO torchrun --nproc-per-node 4 -m iris
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run IRIS")
+    parser.add_argument(
+        "--config",
+        default="config.toml",
+        help="Path to the TOML configuration file",
+    )
+    return parser.parse_args()
 
 def main():
-    cfg = get_config()
+    args = parse_args()
+    cfg = get_config(path=args.config)
     torch.manual_seed(cfg.seed)
     torch.set_float32_matmul_precision("high")
 

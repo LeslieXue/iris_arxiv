@@ -17,6 +17,12 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
 
     parser.add_argument(
+        "--config",
+        default="config.toml",
+        help="Path to the TOML configuration file",
+    )
+
+    parser.add_argument(
         "--split",
         choices=("train", "validation", "test"),
         default="test",
@@ -58,7 +64,7 @@ def load_checkpoint_queries(checkpoint: Path) -> np.ndarray:
 
 def main() -> None:
     args = parse_args()
-    cfg = get_config()
+    cfg = get_config(args.config)
 
     np.random.seed(cfg.seed)
 
