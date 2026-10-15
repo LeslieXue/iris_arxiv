@@ -23,7 +23,13 @@ export PYTHONUNBUFFERED=1
 
 cd /hpc/home/jx198/iris_arxiv
 
-python scripts/download_arxiv11.py \
+IRIS_PYTHON=/work/jx198/iris_arxiv/conda/envs/iris-dcc/bin/python
+
+echo "Python executable: ${IRIS_PYTHON}"
+"${IRIS_PYTHON}" --version
+"${IRIS_PYTHON}" -c 'import datasets; print("datasets:", datasets.__version__)'
+
+"${IRIS_PYTHON}" scripts/download_arxiv11.py \
     --output /work/jx198/iris_arxiv/data/raw/arxiv11/data \
     --dataset-config default
 
