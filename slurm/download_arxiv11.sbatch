@@ -9,7 +9,7 @@
 #SBATCH --output=/work/jx198/iris_arxiv/logs/download-arxiv11-%j.out
 #SBATCH --error=/work/jx198/iris_arxiv/logs/download-arxiv11-%j.err
 
-set -euo pipefail
+set -eo pipefail
 
 module purge
 module load Anaconda3/2024.02
