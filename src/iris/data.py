@@ -11,12 +11,20 @@ from iris.config import Config, DatasetConfig
 
 
 def make_arxiv11_dataset(path: Path) -> pl.DataFrame:
+    files = sorted(path.rglob("*.txt"))
+
     rows = [
-        {"text": path.read_text(), "label": path.parent.name}
-        for path in path.rglob("*.txt")
+        {
+            "text": file_path.read_text(encoding="utf-8"),
+            "label": file_path.parent.name,
+            "source_path": file_path.relative_to(path).as_posix(),
+        }
+        for file_path in files
     ]
+
     df = pl.LazyFrame(rows)
     include = ["cs.AI", "cs.DS", "cs.PL"]
+
     df = (
         df.filter(pl.col("label").is_in(include))
         .with_columns((pl.col("label").rank("dense") - 1).cast(pl.Int32))
@@ -24,6 +32,7 @@ def make_arxiv11_dataset(path: Path) -> pl.DataFrame:
         .with_columns(cs.integer().cast(pl.Int32))
         .collect()
     )
+
     return df
 
 
