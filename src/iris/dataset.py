@@ -61,30 +61,71 @@ class LanceTableDataset(Dataset):
     def __len__(self):
         return self.ids.shape[0]
 
-    def __getitem__(self, idx):
+    def search_chunks(
+        self,
+        document_id: int,
+        include_text: bool = False,
+    ) -> pl.DataFrame:
         dfs: list[pl.DataFrame] = []
-        id = self.ids[idx]
         chunk_ids = []
-        for query in self.queries:
-            condition = f"(id = {id})"
+
+        available_columns = set(self.tbl.schema.names)
+
+        columns = [
+            "id",
+            "chunk_id",
+            "offset",
+            "label",
+            "vector",
+            "_distance",
+        ]
+
+        if include_text:
+            required_columns = {"source_path", "chunk_text"}
+            missing_columns = required_columns - available_columns
+
+            if missing_columns:
+                missing = ", ".join(sorted(missing_columns))
+                raise ValueError(
+                    f"The vector table is missing: {missing}. "
+                    "Rebuild the processed dataset and database."
+                )
+
+            columns.extend(["source_path", "chunk_text"])
+
+        for query_id, query in enumerate(self.queries):
+            condition = f"(id = {document_id})"
+
             if chunk_ids:
                 excluded_chunks = ", ".join(chunk_ids)
                 condition += f" AND (chunk_id NOT IN ({excluded_chunks}))"
+
             df = (
                 self.tbl.search(query=query)
                 .where(condition, prefilter=True)
+                .select(columns)
                 .limit(self.k_neighbors)
                 .to_polars()
+                .with_row_index("rank", offset=1)
+                .with_columns(pl.lit(query_id).alias("query_id"))
             )
+
             chunk_ids.extend(df["chunk_id"].cast(pl.String).to_list())
             dfs.append(df)
-        df = pl.concat(dfs)
+
+        return pl.concat(dfs)
+
+    def __getitem__(self, idx):
+        document_id = self.ids[idx]
+        df = self.search_chunks(document_id)
+
         if df.height == 0:
             vectors = torch.randn(1, self.vector_dim)
             label = self.ignore_index
         else:
             vectors = df["vector"].to_torch()
             label = df["label"][0]
+
         return vectors, torch.tensor(label)
 
 
