@@ -1,0 +1,88 @@
+seed = 42
+fast_dev_run = false
+distributed = false
+quantize = false
+compile = false
+make_dataset = true
+make_database = true
+tune = false
+train = false
+evaluate = false
+# "answerdotai/ModernBERT-large", try mpnet too
+model_id = "answerdotai/ModernBERT-base" 
+verbose = true
+
+[dataset]
+in_path = "data/fake_arxiv/raw/"
+inter_path = "data/fake_arxiv/intermediate/"
+out_path = "data/fake_arxiv/processed/"
+train_size = 0.8
+chunk_length = 256
+overlap = 32
+
+[dataloader]
+batch_size = 8
+pin_memory = false
+num_workers = 0
+
+[database]
+path = "data/fake_arxiv/db/"
+num_partitions = 4
+num_sub_vectors = 16
+k_neighbors = 2
+
+[model]
+num_queries = 3
+d_model = 0              # inferred at run time
+nhead = 4
+hidden_dim = 512
+dropout = 0.1
+output_dim = 0           # inferred at run time
+query_ini_random = false
+auto_device_map = false
+
+[optimizer]
+lr = 1e-3
+weight_decay = 1e-5
+
+[trainer]
+max_epochs = 10
+checkpoint = "models/fake_arxiv_checkpoint.pt"
+gradient_clip = 1.0
+ignore_index = -100
+temperature = 1.0
+
+[tuner]
+path = "models/fake_arxiv_hyperparameters.json"
+n_trials = 10
+prune = false
+
+[hparams]
+[hparams.max_epochs]
+name = "max_epochs"
+low = 3
+high = 20
+[hparams.lr]
+name = "lr"
+low = 1e-5
+high = 1e-2
+[hparams.weight_decay]
+name = "weight_decay"
+low = 1e-8
+high = 1e-2
+[hparams.hidden_dim]
+name = "hidden_dim"
+low = 7             # 2^7 = 128
+high = 10           # 2^10 = 1024
+[hparams.dropout]
+name = "dropout"
+low = 0.0
+high = 0.2
+[hparams.temperature]
+name = "temperature"
+low = 0.1
+high = 2.0
+
+[evaluator]
+path = "data/fake_arxiv/results.parquet"
+n_bootstraps = 100
