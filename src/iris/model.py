@@ -63,6 +63,6 @@ class IRIS(nn.Module):
 
 
 def make_model(ini_queries: np.ndarray, cfg: ModelConfig):
-    exclude = {"num_queries", "query_ini_random", "device"}
+    exclude = {"num_queries", "query_ini_random", "auto_device_map", "device"}
     model_config = cfg.model_dump(exclude=exclude)
     return IRIS(ini_queries=ini_queries, **model_config)
