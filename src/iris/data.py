@@ -172,7 +172,10 @@ def make_dataset(in_file: str, cfg: Config) -> Dataset:
 
     df = df.select(columns)
     if cfg.fast_dev_run:
-        df = df.head(10)
+        # Keep the smoke dataset small while retaining examples from every
+        # class. Taking the first rows only can select a single arXiv category
+        # because source files are sorted by directory name.
+        df = df.group_by("label", maintain_order=True).head(10).sort("id")
     dataset = Dataset.from_polars(df)
     tokenizer = AutoTokenizer.from_pretrained(cfg.model_id)
     tokenize_fn = partial(tokenize, tokenizer=tokenizer)
