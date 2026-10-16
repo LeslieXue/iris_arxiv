@@ -75,14 +75,34 @@ def main():
 
     predictions = []
     targets = []
+    ignored_document_ids = []
     cross_entropy_sum = 0.0
     example_count = 0
+    test_document_ids = loaders.test.dataset.ids  # type: ignore
+    document_offset = 0
 
     for inputs, labels, padding_mask in loaders.test:
+        batch_size = labels.numel()
+        batch_document_ids = test_document_ids[
+            document_offset : document_offset + batch_size
+        ]
+        document_offset += batch_size
+
         inputs = inputs.to(cfg.trainer.device)
         labels = labels.to(cfg.trainer.device)
         padding_mask = padding_mask.to(cfg.trainer.device)
         outputs = model(inputs, padding_mask)
+
+        valid = labels != cfg.trainer.ignore_index
+        ignored_document_ids.extend(
+            int(document_id)
+            for document_id in batch_document_ids[~valid.cpu().numpy()]
+        )
+        outputs = outputs[valid]
+        labels = labels[valid]
+
+        if labels.numel() == 0:
+            continue
 
         batch_size = labels.numel()
         cross_entropy_sum += F.cross_entropy(
@@ -117,7 +137,9 @@ def main():
 
     metrics = {
         "checkpoint": str(cfg.trainer.checkpoint),
+        "test_documents": int(len(test_document_ids)),
         "test_examples": example_count,
+        "ignored_documents": ignored_document_ids,
         "split_documents": {
             "train": split_distribution(loaders.train.dataset.ids, label_by_id),  # type: ignore
             "validation": split_distribution(

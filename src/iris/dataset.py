@@ -100,14 +100,29 @@ class LanceTableDataset(Dataset):
                 excluded_chunks = ", ".join(chunk_ids)
                 condition += f" AND (chunk_id NOT IN ({excluded_chunks}))"
 
-            df = (
+            search = (
                 self.tbl.search(query=query)
                 .where(condition, prefilter=True)
                 .select(columns)
                 .limit(self.k_neighbors)
-                .to_polars()
-                .with_row_index("rank", offset=1)
-                .with_columns(pl.lit(query_id).alias("query_id"))
+            )
+            df = search.to_polars()
+
+            # A global IVF search can occasionally probe no partition that
+            # contains chunks for the requested document. Fall back to an
+            # exact search over the prefiltered document in that case.
+            if df.height == 0:
+                df = (
+                    self.tbl.search(query=query)
+                    .where(condition, prefilter=True)
+                    .bypass_vector_index()
+                    .select(columns)
+                    .limit(self.k_neighbors)
+                    .to_polars()
+                )
+
+            df = df.with_row_index("rank", offset=1).with_columns(
+                pl.lit(query_id).alias("query_id")
             )
 
             chunk_ids.extend(df["chunk_id"].cast(pl.String).to_list())
