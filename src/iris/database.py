@@ -31,8 +31,11 @@ def tensors_to_numpy(data: dict) -> dict:
 
 
 def make_batch_df(batch, model):
-    output = model(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"])
-    batch["vector"] = masked_mean_pool(output, batch["attention_mask"])
+    device = getattr(model, "device", batch["input_ids"].device)
+    input_ids = batch["input_ids"].to(device, non_blocking=True)
+    attention_mask = batch["attention_mask"].to(device, non_blocking=True)
+    output = model(input_ids=input_ids, attention_mask=attention_mask)
+    batch["vector"] = masked_mean_pool(output, attention_mask)
     batch = tensors_to_numpy(batch)
     columns = ["id", "chunk_id", "offset", "label"]
 
@@ -91,7 +94,7 @@ def make_encoder(cfg: Config):
 def make_database(tbl_name: str, cfg: Config):
     # type: ignore
     dataset = load_from_disk(cfg.dataset.out_path)
-    dataset = dataset.with_format("torch", device=cfg.trainer.device)
+    dataset = dataset.with_format("torch")
     dataset = cast(torch.utils.data.Dataset, dataset)
     dataloader = DataLoader(dataset, **cfg.dataloader.model_dump())
     db = lancedb.connect(cfg.database.path)
