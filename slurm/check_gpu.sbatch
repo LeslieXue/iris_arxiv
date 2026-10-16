@@ -14,6 +14,7 @@ set -eo pipefail
 
 module purge
 module load Anaconda3/2024.02
+module load CUDA/12.4
 
 source /opt/apps/rhel9/Anaconda3-2024.02/etc/profile.d/conda.sh
 conda activate /work/jx198/iris_arxiv/conda/envs/iris-dcc-v2
@@ -24,6 +25,8 @@ export PYTHONUNBUFFERED=1
 
 IRIS_PYTHON=/work/jx198/iris_arxiv/conda/envs/iris-dcc-v2/bin/python
 
+echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}"
+echo "SLURM_JOB_GPUS=${SLURM_JOB_GPUS:-<unset>}"
 echo "Host: $(hostname)"
 echo "Python: ${IRIS_PYTHON}"
 
