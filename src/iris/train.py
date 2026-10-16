@@ -40,6 +40,8 @@ class Trainer:
         self.cfg = cfg
         self.train_loss = float("inf")
         self.val_loss = float("inf")
+        self.best_val_loss = float("inf")
+        self.best_epoch = 0
         self.value = 0.0
         self.metric = metric
 
@@ -72,6 +74,15 @@ class Trainer:
             self.update_progress_bar()
         self.validate()
         self.scheduler.step()
+        if self.val_loss < self.best_val_loss:
+            self.best_val_loss = self.val_loss
+            self.best_epoch = epoch + 1
+            self.cfg.checkpoint.parent.mkdir(parents=True, exist_ok=True)
+            torch.save(self.model.state_dict(), self.cfg.checkpoint)
+            self.progress_bar.write(
+                f"Saved best checkpoint at epoch {self.best_epoch}: "
+                f"{self.cfg.checkpoint}"
+            )
         self.progress_bar.write(
             f"Epoch {epoch + 1}/{self.max_epochs}: "
             f"train_loss={self.train_loss:.6f}, "
@@ -84,6 +95,12 @@ class Trainer:
         for epoch in range(self.max_epochs):
             self.train_epoch(epoch)
         self.progress_bar.close()
+        best_weights = torch.load(
+            self.cfg.checkpoint,
+            map_location=self.cfg.device,
+            weights_only=True,
+        )
+        self.model.load_state_dict(best_weights)
         queries = self.model.queries.detach().cpu().numpy()
         self.loaders.test.dataset.queries = queries  # type: ignore
 
@@ -173,4 +190,3 @@ def train_model(cfg: Config, tbl: LanceTable, use_best: bool = False):
         cfg = set_hyperparams(cfg=cfg, **hyperparameters)
     trainer = make_trainer(cfg=cfg, tbl=tbl)
     trainer.train()
-    torch.save(trainer.model.state_dict(), cfg.trainer.checkpoint)
