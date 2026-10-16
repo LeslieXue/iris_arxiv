@@ -15,7 +15,7 @@ module purge
 module load Anaconda3/2024.02
 
 source /opt/apps/rhel9/Anaconda3-2024.02/etc/profile.d/conda.sh
-conda activate /work/jx198/iris_arxiv/conda/envs/iris-dcc
+conda activate /work/jx198/iris_arxiv/conda/envs/iris-dcc-v2
 
 export HF_HOME=/work/jx198/iris_arxiv/hf_cache
 export HF_DATASETS_CACHE=/work/jx198/iris_arxiv/hf_cache/datasets
@@ -23,7 +23,7 @@ export PYTHONUNBUFFERED=1
 
 cd /hpc/home/jx198/iris_arxiv
 
-IRIS_PYTHON=/work/jx198/iris_arxiv/conda/envs/iris-dcc/bin/python
+IRIS_PYTHON=/work/jx198/iris_arxiv/conda/envs/iris-dcc-v2/bin/python
 
 echo "Python executable: ${IRIS_PYTHON}"
 "${IRIS_PYTHON}" --version

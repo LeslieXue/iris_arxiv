@@ -16,13 +16,13 @@ module purge
 module load Anaconda3/2024.02
 
 source /opt/apps/rhel9/Anaconda3-2024.02/etc/profile.d/conda.sh
-conda activate /work/jx198/iris_arxiv/conda/envs/iris-dcc
+conda activate /work/jx198/iris_arxiv/conda/envs/iris-dcc-v2
 
 export HF_HOME=/work/jx198/iris_arxiv/hf_cache
 export TOKENIZERS_PARALLELISM=false
 export PYTHONUNBUFFERED=1
 
-IRIS_PYTHON=/work/jx198/iris_arxiv/conda/envs/iris-dcc/bin/python
+IRIS_PYTHON=/work/jx198/iris_arxiv/conda/envs/iris-dcc-v2/bin/python
 
 echo "Host: $(hostname)"
 echo "Python: ${IRIS_PYTHON}"
