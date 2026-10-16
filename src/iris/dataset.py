@@ -144,18 +144,31 @@ class DataLoaders:
     test: DataLoader
 
 
-def train_val_test_split(data: np.ndarray, seed: int):
-    train, temp = train_test_split(data, test_size=0.2, shuffle=True, random_state=seed)
-    val, test = train_test_split(temp, test_size=0.5, random_state=seed)
+def train_val_test_split(data: np.ndarray, labels: np.ndarray, seed: int):
+    train, temp, _, temp_labels = train_test_split(
+        data,
+        labels,
+        test_size=0.2,
+        shuffle=True,
+        random_state=seed,
+        stratify=labels,
+    )
+    val, test = train_test_split(
+        temp,
+        test_size=0.5,
+        random_state=seed,
+        stratify=temp_labels,
+    )
     return train, val, test
 
 
 def make_loaders(cfg: Config, tbl: LanceTable):
     lance_tbl = tbl.to_lance()
     duckdb.register("lance_tbl", lance_tbl)
-    df = duckdb.sql("SELECT DISTINCT id FROM lance_tbl").to_df()
+    df = duckdb.sql("SELECT DISTINCT id, label FROM lance_tbl").to_df()
     ids = df["id"].to_numpy()
-    train, val, test = train_val_test_split(ids, seed=cfg.seed)
+    labels = df["label"].to_numpy()
+    train, val, test = train_val_test_split(ids, labels=labels, seed=cfg.seed)
     ini_queries = get_ini_queries(tbl=tbl, cfg=cfg)
     dataset = partial(
         LanceTableDataset,
