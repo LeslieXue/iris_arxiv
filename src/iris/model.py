@@ -51,7 +51,9 @@ class IRIS(nn.Module):
             attn_mask=attn_mask,
             dropout_p=(self.p if self.training else 0.0),
         )
-        out = out.view(B, N, D)  # (batch_size, num_queries, d_model)
+        # Attention returns (batch_size, nhead, num_queries, head_dim).
+        # Move the query dimension back before joining the attention heads.
+        out = out.transpose(1, 2).reshape(B, N, D)
         return out
 
     def forward(self, x: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
