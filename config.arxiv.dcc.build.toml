@@ -22,7 +22,7 @@ chunk_length = 256
 overlap = 32
 
 [dataloader]
-batch_size = 64
+batch_size = 16
 pin_memory = true
 num_workers = 0
 
