@@ -59,7 +59,7 @@ PY
 "${IRIS_PYTHON}" -m iris --config "${CONFIG_PATH}"
 
 echo "Processed dataset size:"
-du -sh /work/jx198/iris_arxiv/data/processed/arxiv11 || true
+du -sh /work/jx198/iris_arxiv/data/processed || true
 
 echo "Database size:"
 du -sh /work/jx198/iris_arxiv/data/db || true
