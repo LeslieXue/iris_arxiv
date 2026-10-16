@@ -44,15 +44,11 @@ class Trainer:
         self.metric = metric
 
     def update_progress_bar(self) -> None:
-        postfix = (
-            f"Train loss: {self.train_loss:.3f}, "
-            f"Val loss: {self.val_loss:.3f}, "
-            f"Val acc: {self.value:.3f}"
-        )
+        postfix = f"Train loss: {self.train_loss:.3f}"
         self.progress_bar.set_postfix_str(postfix)
         self.progress_bar.update()
 
-    def train_step(self, batch: tuple[Tensor, Tensor, Tensor]) -> Tensor:
+    def train_step(self, batch: tuple[Tensor, Tensor, Tensor]) -> float:
         inputs, labels, padding_mask = batch
         self.optimizer.zero_grad()
         inputs = inputs.to(self.cfg.device)
@@ -65,22 +61,28 @@ class Trainer:
         self.optimizer.step()
         queries = self.model.queries.detach().cpu().numpy()
         self.loaders.train.dataset.queries = queries  # type: ignore
-        return loss
+        return loss.detach().item()
 
-    def train_epoch(self) -> None:
+    def train_epoch(self, epoch: int) -> None:
         self.model.train()
         loss = 0.0
         for step, batch in enumerate(self.loaders.train, start=1):
             loss += self.train_step(batch)
-            self.train_loss = loss.item() / step
+            self.train_loss = loss / step
             self.update_progress_bar()
         self.validate()
         self.scheduler.step()
+        self.progress_bar.write(
+            f"Epoch {epoch + 1}/{self.max_epochs}: "
+            f"train_loss={self.train_loss:.6f}, "
+            f"val_loss={self.val_loss:.6f}, "
+            f"val_acc={self.value:.6f}"
+        )
 
     def train(self) -> None:
         self.model.to(self.cfg.device)
         for epoch in range(self.max_epochs):
-            self.train_epoch()
+            self.train_epoch(epoch)
         self.progress_bar.close()
         queries = self.model.queries.detach().cpu().numpy()
         self.loaders.test.dataset.queries = queries  # type: ignore
@@ -96,7 +98,7 @@ class Trainer:
             labels = labels.to(self.cfg.device)
             padding_mask = padding_mask.to(self.cfg.device)
             outputs = self.model(inputs, padding_mask)
-            loss += self.criterion(outputs, labels, self.model.queries)
+            loss += self.criterion(outputs, labels, self.model.queries).item()
             preds = outputs.argmax(dim=1)
             self.metric.update(preds, labels)
         loss /= len(self.loaders.validation)
