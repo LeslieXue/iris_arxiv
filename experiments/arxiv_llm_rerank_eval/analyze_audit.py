@@ -27,7 +27,7 @@ def parse_args():
     default_config = Path(__file__).with_name("config.toml")
 
     parser = argparse.ArgumentParser(
-        description="Analyze the teacher-v2 validation audit"
+        description="Analyze a versioned teacher-prompt validation audit"
     )
     parser.add_argument(
         "--config",
@@ -189,6 +189,7 @@ def main():
         config_path = repo_root / config_path
 
     cfg = load_toml(config_path)
+    prompt_version = str(cfg["teacher"]["prompt_version"])
     output_dir = Path(cfg["paths"]["output_dir"])
 
     if not output_dir.is_absolute():
@@ -198,12 +199,21 @@ def main():
     input_path = output_dir / "teacher_inputs.audit.jsonl"
     score_path = (
         output_dir
-        / "qwen_scores.teacher_v2.audit.jsonl"
+        / f"qwen_scores.{prompt_version}.audit.jsonl"
     )
 
-    scored_path = output_dir / "audit_scored.parquet"
-    metrics_path = output_dir / "audit_metrics.json"
-    review_path = output_dir / "audit_review.md"
+    scored_path = (
+        output_dir
+        / f"audit_scored.{prompt_version}.parquet"
+    )
+    metrics_path = (
+        output_dir
+        / f"audit_metrics.{prompt_version}.json"
+    )
+    review_path = (
+        output_dir
+        / f"audit_review.{prompt_version}.md"
+    )
 
     manifest_rows = pl.read_parquet(
         manifest_path
@@ -375,7 +385,7 @@ def main():
             "These are document-label alignment diagnostics. "
             "A document label is not a gold chunk label."
         ),
-        "prompt_version": cfg["teacher"]["prompt_version"],
+        "prompt_version": prompt_version,
         "insufficient_max_score": (
             INSUFFICIENT_MAX_SCORE
         ),
@@ -418,7 +428,7 @@ def main():
     )[:5]
 
     review_sections = [
-        "# Teacher-v2 validation audit",
+        f"# {prompt_version} validation audit",
         "",
         (
             "Document-label alignment is a diagnostic only. "
@@ -466,7 +476,7 @@ def main():
     print("Scored audit table:", scored_path)
     print("Audit metrics:", metrics_path)
     print("Manual review report:", review_path)
-    print("Teacher-v2 audit analysis completed.")
+    print(f"{prompt_version} audit analysis completed.")
 
 
 if __name__ == "__main__":

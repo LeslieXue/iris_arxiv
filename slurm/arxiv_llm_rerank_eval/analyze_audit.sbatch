@@ -33,6 +33,27 @@ echo "Host: $(hostname)"
 echo "Python: ${IRIS_PYTHON}"
 echo "Experiment config: ${EXPERIMENT_CONFIG}"
 
+PROMPT_VERSION="$(
+    "${IRIS_PYTHON}" - "${EXPERIMENT_CONFIG}" <<'PY'
+import sys
+import tomllib
+from pathlib import Path
+
+config_path = Path(sys.argv[1])
+with config_path.open("rb") as handle:
+    config = tomllib.load(handle)
+
+print(config["teacher"]["prompt_version"])
+PY
+)"
+
+SCORE_PATH="${OUTPUT_DIR}/qwen_scores.${PROMPT_VERSION}.audit.jsonl"
+METRICS_PATH="${OUTPUT_DIR}/audit_metrics.${PROMPT_VERSION}.json"
+SCORED_PATH="${OUTPUT_DIR}/audit_scored.${PROMPT_VERSION}.parquet"
+REVIEW_PATH="${OUTPUT_DIR}/audit_review.${PROMPT_VERSION}.md"
+
+echo "Prompt version: ${PROMPT_VERSION}"
+
 if [[ ! -f "${OUTPUT_DIR}/audit_manifest.parquet" ]]; then
     echo "Missing audit manifest" >&2
     exit 1
@@ -43,8 +64,8 @@ if [[ ! -f "${OUTPUT_DIR}/teacher_inputs.audit.jsonl" ]]; then
     exit 1
 fi
 
-if [[ ! -f "${OUTPUT_DIR}/qwen_scores.teacher_v2.audit.jsonl" ]]; then
-    echo "Missing teacher-v2 audit scores" >&2
+if [[ ! -f "${SCORE_PATH}" ]]; then
+    echo "Missing audit scores: ${SCORE_PATH}" >&2
     exit 1
 fi
 
@@ -52,27 +73,28 @@ fi
     experiments/arxiv_llm_rerank_eval/analyze_audit.py \
     --config "${EXPERIMENT_CONFIG}"
 
+PROMPT_VERSION="${PROMPT_VERSION}" \
+OUTPUT_DIR="${OUTPUT_DIR}" \
 "${IRIS_PYTHON}" - <<'PY'
 import json
+import os
 from pathlib import Path
 
 import polars as pl
 
-root = Path(
-    "/work/jx198/iris_arxiv/"
-    "experiments/arxiv_llm_rerank_eval/v1"
-)
+root = Path(os.environ["OUTPUT_DIR"])
+prompt_version = os.environ["PROMPT_VERSION"]
 
-metrics_path = root / "audit_metrics.json"
-scored_path = root / "audit_scored.parquet"
-review_path = root / "audit_review.md"
+metrics_path = root / f"audit_metrics.{prompt_version}.json"
+scored_path = root / f"audit_scored.{prompt_version}.parquet"
+review_path = root / f"audit_review.{prompt_version}.md"
 
 metrics = json.loads(
     metrics_path.read_text(encoding="utf-8")
 )
 scored = pl.read_parquet(scored_path)
 
-assert metrics["prompt_version"] == "teacher_v2"
+assert metrics["prompt_version"] == prompt_version
 assert metrics["overall"]["records"] == 36
 assert scored.height == 36
 assert review_path.exists()
@@ -86,9 +108,9 @@ PY
 echo
 echo "Analysis artifacts:"
 ls -lh \
-    "${OUTPUT_DIR}/audit_metrics.json" \
-    "${OUTPUT_DIR}/audit_scored.parquet" \
-    "${OUTPUT_DIR}/audit_review.md"
+    "${METRICS_PATH}" \
+    "${SCORED_PATH}" \
+    "${REVIEW_PATH}"
 
 echo
-echo "Teacher-v2 audit analysis job completed."
+echo "${PROMPT_VERSION} audit analysis job completed."
