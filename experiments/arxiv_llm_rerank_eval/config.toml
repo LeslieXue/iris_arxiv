@@ -19,9 +19,13 @@ candidates_per_query = 8
 selected_per_query = 4
 
 [teacher]
-model_id = "TO_BE_SELECTED"
+model_id = "Qwen/Qwen3-8B"
 prompt_version = "teacher_v1"
+enable_thinking = false
+do_sample = false
 temperature = 0.0
+max_new_tokens = 256
+batch_size = 4
 
 [reranking]
 hybrid_alpha = 0.5
