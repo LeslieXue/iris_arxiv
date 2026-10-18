@@ -1,14 +1,14 @@
 #!/bin/bash
 
-#SBATCH --job-name=qwen-audit-v2
+#SBATCH --job-name=qwen-prompt-audit
 #SBATCH --account=engelhardlab
 #SBATCH --partition=engelhardlab-gpu
 #SBATCH --gres=gpu:5000_ada:1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
 #SBATCH --time=02:00:00
-#SBATCH --output=/work/jx198/iris_arxiv/logs/qwen-audit-v2-%j.out
-#SBATCH --error=/work/jx198/iris_arxiv/logs/qwen-audit-v2-%j.err
+#SBATCH --output=/work/jx198/iris_arxiv/logs/qwen-prompt-audit-%j.out
+#SBATCH --error=/work/jx198/iris_arxiv/logs/qwen-prompt-audit-%j.err
 
 set -eo pipefail
 
@@ -30,17 +30,24 @@ REPO_ROOT=/hpc/home/jx198/iris_arxiv
 EXPERIMENT_CONFIG=experiments/arxiv_llm_rerank_eval/config.toml
 OUTPUT_DIR=/work/jx198/iris_arxiv/experiments/arxiv_llm_rerank_eval/v1
 
-export AUDIT_INPUT="${OUTPUT_DIR}/teacher_inputs.audit.jsonl"
-export AUDIT_OUTPUT="${OUTPUT_DIR}/qwen_scores.teacher_v2.audit.jsonl"
-
 mkdir -p /work/jx198/iris_arxiv/logs
 mkdir -p "${OUTPUT_DIR}"
 
 cd "${REPO_ROOT}"
 
+PROMPT_VERSION=$(
+    "${IRIS_PYTHON}" -c \
+    'import tomllib; print(tomllib.load(open("experiments/arxiv_llm_rerank_eval/config.toml", "rb"))["teacher"]["prompt_version"])'
+)
+
+export PROMPT_VERSION
+export AUDIT_INPUT="${OUTPUT_DIR}/teacher_inputs.audit.jsonl"
+export AUDIT_OUTPUT="${OUTPUT_DIR}/qwen_scores.${PROMPT_VERSION}.audit.jsonl"
+
 echo "Host: $(hostname)"
 echo "Python: ${IRIS_PYTHON}"
 echo "Experiment config: ${EXPERIMENT_CONFIG}"
+echo "Prompt version: ${PROMPT_VERSION}"
 echo "Audit input: ${AUDIT_INPUT}"
 echo "Audit output: ${AUDIT_OUTPUT}"
 echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}"
@@ -50,6 +57,7 @@ echo "SLURM_JOB_GPUS=${SLURM_JOB_GPUS:-<unset>}"
 nvidia-smi
 
 "${IRIS_PYTHON}" - <<'PY'
+import os
 import tomllib
 from pathlib import Path
 
@@ -62,24 +70,44 @@ config_path = Path(
 with config_path.open("rb") as handle:
     config = tomllib.load(handle)
 
+prompt_version = config["teacher"]["prompt_version"]
+expected_version = os.environ["PROMPT_VERSION"]
+
+if prompt_version != expected_version:
+    raise RuntimeError(
+        f"Prompt version mismatch: "
+        f"{prompt_version} != {expected_version}"
+    )
+
+prompt_path = (
+    config_path.parent
+    / "prompts"
+    / f"{prompt_version}.txt"
+)
+
+if not prompt_path.exists():
+    raise FileNotFoundError(prompt_path)
+
 print("PyTorch:", torch.__version__)
 print("CUDA build:", torch.version.cuda)
 print("CUDA available:", torch.cuda.is_available())
 print("Teacher model:", config["teacher"]["model_id"])
-print("Prompt version:", config["teacher"]["prompt_version"])
+print("Prompt version:", prompt_version)
+print("Prompt path:", prompt_path)
 
 if not torch.cuda.is_available():
-    raise RuntimeError("CUDA is not available inside the GPU job")
-
-if config["teacher"]["prompt_version"] != "teacher_v2":
     raise RuntimeError(
-        "Audit job requires prompt_version=teacher_v2"
+        "CUDA is not available inside the GPU job"
     )
 
 print("GPU:", torch.cuda.get_device_name(0))
 print(
     "GPU memory GB:",
-    round(torch.cuda.get_device_properties(0).total_memory / 1024**3, 2),
+    round(
+        torch.cuda.get_device_properties(0).total_memory
+        / 1024**3,
+        2,
+    ),
 )
 PY
 
@@ -103,9 +131,15 @@ from pathlib import Path
 import polars as pl
 
 output_path = Path(os.environ["AUDIT_OUTPUT"])
-manifest_path = output_path.parent / "audit_manifest.parquet"
+prompt_version = os.environ["PROMPT_VERSION"]
+
+manifest_path = (
+    output_path.parent / "audit_manifest.parquet"
+)
 error_path = output_path.with_suffix(".errors.jsonl")
-metadata_path = output_path.with_suffix(".metadata.json")
+metadata_path = output_path.with_suffix(
+    ".metadata.json"
+)
 
 with output_path.open("r", encoding="utf-8") as handle:
     scores = [
@@ -167,7 +201,7 @@ metadata = json.loads(
     metadata_path.read_text(encoding="utf-8")
 )
 
-assert metadata["prompt_version"] == "teacher_v2"
+assert metadata["prompt_version"] == prompt_version
 assert metadata["successful_records"] == 36
 assert metadata["failed_records"] == 0
 
@@ -180,7 +214,7 @@ PY
 echo
 echo "Audit scoring artifacts:"
 ls -lh \
-    "${OUTPUT_DIR}"/qwen_scores.teacher_v2.audit*
+    "${OUTPUT_DIR}"/qwen_scores."${PROMPT_VERSION}".audit*
 
 echo
-echo "Qwen teacher-v2 audit scoring completed."
+echo "Qwen ${PROMPT_VERSION} audit scoring completed."

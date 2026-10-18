@@ -20,7 +20,7 @@ selected_per_query = 4
 
 [teacher]
 model_id = "Qwen/Qwen3-8B"
-prompt_version = "teacher_v2"
+prompt_version = "teacher_v3"
 enable_thinking = false
 do_sample = false
 temperature = 0.0
