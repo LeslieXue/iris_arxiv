@@ -1,0 +1,21 @@
+version = "v2_target_conditioned"
+
+[source]
+output_dir = "/work/jx198/iris_arxiv/experiments/arxiv_llm_rerank_eval/v1"
+
+[paths]
+output_dir = "/work/jx198/iris_arxiv/experiments/arxiv_llm_rerank_eval/v2_target_conditioned"
+
+[target_descriptions]
+"cs.AI" = "Artificial intelligence research centered on learning, reasoning, planning, search, perception, language, agents, or intelligent decision-making."
+"cs.DS" = "Data Structures and Algorithms research centered on designing or analyzing algorithms, data structures, complexity, correctness, or general algorithmic properties."
+"cs.PL" = "Programming Languages research centered on language design, types, semantics, parsing, compilers, program analysis, verification, or language implementation."
+
+[teacher]
+model_id = "Qwen/Qwen3-8B"
+prompt_version = "target_evidence_v1"
+enable_thinking = false
+do_sample = false
+temperature = 0.0
+max_new_tokens = 192
+batch_size = 4
