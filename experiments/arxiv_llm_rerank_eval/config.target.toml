@@ -13,7 +13,7 @@ output_dir = "/work/jx198/iris_arxiv/experiments/arxiv_llm_rerank_eval/v2_target
 
 [teacher]
 model_id = "Qwen/Qwen3-8B"
-prompt_version = "target_evidence_v1"
+prompt_version = "target_evidence_v2"
 enable_thinking = false
 do_sample = false
 temperature = 0.0
