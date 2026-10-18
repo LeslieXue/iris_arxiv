@@ -19,3 +19,11 @@ do_sample = false
 temperature = 0.0
 max_new_tokens = 192
 batch_size = 4
+
+[pilot]
+split = "validation"
+target_label = "cs.AI"
+num_queries = 8
+candidates_per_query = 4
+selection_seed = 20261018
+output_subdir = "pilot_top32"
