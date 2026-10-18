@@ -22,3 +22,6 @@ license-files = ["LICEN[CS]E*"]
 [project.urls]
 Homepage = "https://github.com/Elliot-D-Hill/iris"
 Issues = "https://github.com/Elliot-D-Hill/iris/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/iris", "src/iris_llm"]

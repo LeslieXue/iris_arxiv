@@ -1,0 +1,27 @@
+version = "v1"
+seed = 20261017
+
+[iris]
+config_path = "config.arxiv.dcc.train.toml"
+checkpoint = "/work/jx198/iris_arxiv/checkpoints/arxiv11-best.pt"
+table_name = "arxiv11"
+
+[paths]
+output_dir = "/work/jx198/iris_arxiv/experiments/arxiv_llm_rerank_eval/v1"
+
+[sampling]
+validation_per_class = 30
+test_per_class = 50
+
+[retrieval]
+num_queries = 8
+candidates_per_query = 8
+selected_per_query = 4
+
+[teacher]
+model_id = "TO_BE_SELECTED"
+prompt_version = "teacher_v1"
+temperature = 0.0
+
+[reranking]
+hybrid_alpha = 0.5
