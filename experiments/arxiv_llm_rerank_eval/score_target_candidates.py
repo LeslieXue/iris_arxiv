@@ -176,7 +176,10 @@ def parse_teacher_output(
     raw_output: str,
     record: TargetCandidateForScoring,
 ) -> TargetTeacherScore:
-    cleaned = raw_output.strip()
+    cleaned = "".join(
+        " " if ord(char) < 32 and char not in "\t\n\r" else char
+        for char in raw_output.strip()
+    )
 
     if not cleaned.startswith("{") or not cleaned.endswith("}"):
         raise ValueError("Teacher output is not exactly one JSON object")
