@@ -42,7 +42,7 @@ def evaluate_model(cfg: Config, dataloader: DataLoader) -> dict:
     results = {}
     metrics = bootstrap_metrics(cfg, metrics, cfg.evaluator.n_bootstraps)
     for name, metric in metrics.items():
-        for inputs, labels, padding_mask in dataloader:
+        for inputs, labels, padding_mask, _, _ in dataloader:
             inputs = inputs.to(cfg.trainer.device)
             labels = labels.to(cfg.trainer.device)
             padding_mask = padding_mask.to(cfg.trainer.device)

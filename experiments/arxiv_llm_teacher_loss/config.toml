@@ -1,0 +1,69 @@
+version = "v1_full_teacher_loss"
+
+[database]
+path = "/work/jx198/iris_arxiv/data/db"
+table_name = "arxiv11"
+
+[paths]
+output_dir = "/work/jx198/iris_arxiv/experiments/arxiv_llm_teacher_loss/v1"
+
+[target_descriptions]
+"cs.AI" = "Artificial intelligence research centered on learning, reasoning, planning, search, perception, language, agents, or intelligent decision-making."
+"cs.DS" = "Data Structures and Algorithms research centered on designing or analyzing algorithms, data structures, complexity, correctness, or general algorithmic properties."
+"cs.PL" = "Programming Languages research centered on language design, types, semantics, parsing, compilers, program analysis, verification, or language implementation."
+
+[export]
+num_shards = 8
+
+[teacher]
+model_id = "Qwen/Qwen3-8B"
+prompt_version = "target_evidence_v2"
+prompt_path = "../arxiv_llm_rerank_eval/prompts/target_evidence_v2.txt"
+enable_thinking = false
+do_sample = false
+temperature = 0.0
+max_new_tokens = 192
+batch_size = 8
+
+[score]
+# target_evidence is the primary ordinal score. The secondary term breaks
+# target-evidence ties using explanatory quality minus shortcut risk. Because
+# its weight is 0.1, it cannot reverse a one-point target-evidence difference.
+tie_breaker_weight = 0.1
+
+[training]
+teacher_pair_temperature = 1.0
+teacher_min_score_gap = 0.05
+teacher_scores_path = "/work/jx198/iris_arxiv/experiments/arxiv_llm_teacher_loss/v1/teacher_scores.parquet"
+checkpoint_dir = "/work/jx198/iris_arxiv/checkpoints/teacher_loss_v1"
+metadata_dir = "/work/jx198/iris_arxiv/results/teacher_loss_v1"
+
+[[training.variants]]
+name = "baseline"
+enabled = false
+weight = 0.0
+score_mode = "real"
+
+[[training.variants]]
+name = "shuffled_w005"
+enabled = true
+weight = 0.05
+score_mode = "shuffled"
+
+[[training.variants]]
+name = "teacher_w001"
+enabled = true
+weight = 0.01
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w005"
+enabled = true
+weight = 0.05
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w010"
+enabled = true
+weight = 0.10
+score_mode = "real"

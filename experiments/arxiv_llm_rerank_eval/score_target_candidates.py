@@ -163,7 +163,6 @@ def build_prompt(
     template: str,
     record: TargetCandidateForScoring,
 ) -> str:
-    validate_prompt_template(template)
     values = record.model_dump()
     prompt = template
 
@@ -239,11 +238,18 @@ def main():
     error_path = output_path.with_suffix(".errors.jsonl")
     metadata_path = output_path.with_suffix(".metadata.json")
 
-    prompt_path = (
-        config_path.parent
-        / "prompts"
-        / f"{teacher_cfg['prompt_version']}.txt"
-    )
+    configured_prompt_path = teacher_cfg.get("prompt_path")
+    if configured_prompt_path:
+        prompt_path = Path(str(configured_prompt_path))
+        if not prompt_path.is_absolute():
+            prompt_path = config_path.parent / prompt_path
+    else:
+        prompt_path = (
+            config_path.parent
+            / "prompts"
+            / f"{teacher_cfg['prompt_version']}.txt"
+        )
+    prompt_path = prompt_path.resolve()
     prompt_template = prompt_path.read_text(encoding="utf-8")
     validate_prompt_template(prompt_template)
 

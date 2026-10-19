@@ -50,27 +50,40 @@ class Trainer:
         self.progress_bar.set_postfix_str(postfix)
         self.progress_bar.update()
 
-    def train_step(self, batch: tuple[Tensor, Tensor, Tensor]) -> float:
-        inputs, labels, padding_mask = batch
+    def train_step(self, batch: tuple[Tensor, ...]) -> dict[str, float]:
+        inputs, labels, padding_mask, query_ids, teacher_scores = batch
         self.optimizer.zero_grad()
         inputs = inputs.to(self.cfg.device)
         labels = labels.to(self.cfg.device)
         padding_mask = padding_mask.to(self.cfg.device)
+        query_ids = query_ids.to(self.cfg.device)
+        teacher_scores = teacher_scores.to(self.cfg.device)
         outputs = self.model(inputs, padding_mask)
-        loss = self.criterion(outputs, labels, self.model.queries)
+        losses = self.criterion.components(
+            outputs,
+            labels,
+            self.model.queries,
+            vectors=inputs,
+            query_ids=query_ids,
+            teacher_scores=teacher_scores,
+            attention_mask=padding_mask,
+        )
+        loss = losses["total"]
         loss.backward()
         clip_grad_norm_(self.model.parameters(), max_norm=self.cfg.gradient_clip)
         self.optimizer.step()
         queries = self.model.queries.detach().cpu().numpy()
         self.loaders.train.dataset.queries = queries  # type: ignore
-        return loss.detach().item()
+        return {name: value.detach().item() for name, value in losses.items()}
 
     def train_epoch(self, epoch: int) -> None:
         self.model.train()
-        loss = 0.0
+        totals: dict[str, float] = {}
         for step, batch in enumerate(self.loaders.train, start=1):
-            loss += self.train_step(batch)
-            self.train_loss = loss / step
+            step_losses = self.train_step(batch)
+            for name, value in step_losses.items():
+                totals[name] = totals.get(name, 0.0) + value
+            self.train_loss = totals["total"] / step
             self.update_progress_bar()
         self.validate()
         self.scheduler.step()
@@ -86,6 +99,10 @@ class Trainer:
         self.progress_bar.write(
             f"Epoch {epoch + 1}/{self.max_epochs}: "
             f"train_loss={self.train_loss:.6f}, "
+            f"train_ce={totals['classification'] / step:.6f}, "
+            f"train_query_penalty={totals['query_penalty'] / step:.6f}, "
+            f"train_teacher={totals['teacher_ranking'] / step:.6f}, "
+            f"train_weighted_teacher={totals['weighted_teacher'] / step:.6f}, "
             f"val_loss={self.val_loss:.6f}, "
             f"val_acc={self.value:.6f}"
         )
@@ -110,7 +127,7 @@ class Trainer:
         queries = self.model.queries.detach().cpu().numpy()
         self.loaders.validation.dataset.queries = queries  # type: ignore
         loss = 0.0
-        for inputs, labels, padding_mask in self.loaders.validation:
+        for inputs, labels, padding_mask, _, _ in self.loaders.validation:
             inputs = inputs.to(self.cfg.device)
             labels = labels.to(self.cfg.device)
             padding_mask = padding_mask.to(self.cfg.device)
@@ -130,7 +147,7 @@ def predict(
 ) -> list[Tensor]:
     model.eval()
     predictions = []
-    for inputs, labels, padding_mask in dataloader:
+    for inputs, labels, padding_mask, _, _ in dataloader:
         inputs = inputs.to(device)
         labels = labels.to(device)
         padding_mask = padding_mask.to(device)
@@ -146,7 +163,13 @@ def make_trainer(cfg: Config, tbl: LanceTable) -> Trainer:
     model.to(cfg.trainer.device)
     optimizer = AdamW(model.parameters(), **cfg.optimizer.model_dump(), fused=True)
     criterion = QueryLoss(
-        temperature=cfg.trainer.temperature, ignore_index=cfg.trainer.ignore_index
+        temperature=cfg.trainer.temperature,
+        ignore_index=cfg.trainer.ignore_index,
+        teacher_weight=(
+            cfg.teacher_loss.weight if cfg.teacher_loss.enabled else 0.0
+        ),
+        teacher_pair_temperature=cfg.teacher_loss.pair_temperature,
+        teacher_min_score_gap=cfg.teacher_loss.min_score_gap,
     )
     scheduler = ExponentialLR(optimizer, gamma=0.9, last_epoch=-1)
     metric = Accuracy(

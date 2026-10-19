@@ -22,7 +22,6 @@ from iris.dataset import get_num_classes, make_loaders
 from iris.loss import query_similarity_penalty
 from iris.model import make_model
 
-
 LABEL_NAMES = {
     0: "cs.AI",
     1: "cs.DS",
@@ -33,6 +32,12 @@ LABEL_NAMES = {
 def parse_args():
     parser = argparse.ArgumentParser(description="Evaluate a trained IRIS model")
     parser.add_argument("--config", required=True, help="Training TOML configuration")
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        default=None,
+        help="Optional checkpoint override",
+    )
     parser.add_argument("--output", required=True, help="Metrics JSON output path")
     return parser.parse_args()
 
@@ -49,6 +54,8 @@ def split_distribution(ids, label_by_id):
 def main():
     args = parse_args()
     cfg = get_config(args.config)
+    if args.checkpoint is not None:
+        cfg.trainer.checkpoint = args.checkpoint
 
     torch.manual_seed(cfg.seed)
     np.random.seed(cfg.seed)
@@ -59,7 +66,11 @@ def main():
     cfg.model.output_dim = get_num_classes(table)
     cfg.task = "binary" if cfg.model.output_dim == 2 else "multiclass"
 
-    loaders = make_loaders(cfg=cfg, tbl=table)
+    loaders = make_loaders(
+        cfg=cfg,
+        tbl=table,
+        include_teacher_scores=False,
+    )
     checkpoint = torch.load(
         cfg.trainer.checkpoint,
         map_location="cpu",
@@ -81,7 +92,7 @@ def main():
     test_document_ids = loaders.test.dataset.ids  # type: ignore
     document_offset = 0
 
-    for inputs, labels, padding_mask in loaders.test:
+    for inputs, labels, padding_mask, _, _ in loaders.test:
         batch_size = labels.numel()
         batch_document_ids = test_document_ids[
             document_offset : document_offset + batch_size

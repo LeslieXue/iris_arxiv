@@ -59,9 +59,9 @@ def main():
     if cfg.tune:
         tune(cfg=cfg, tbl=tbl)
     if cfg.train:
-        loaders = make_loaders(cfg=cfg, tbl=tbl)
         train_model(cfg=cfg, tbl=tbl, use_best=False)
     if cfg.evaluate:
+        loaders = make_loaders(cfg=cfg, tbl=tbl)
         data = evaluate_model(cfg=cfg, dataloader=loaders.test)
         df = pl.DataFrame(data)
         df.write_parquet(cfg.evaluator.path)
