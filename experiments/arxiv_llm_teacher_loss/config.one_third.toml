@@ -1,0 +1,61 @@
+version = "v1_one_third_teacher_loss"
+
+[database]
+path = "/work/jx198/iris_arxiv/data/db"
+table_name = "arxiv11"
+
+[paths]
+output_dir = "/work/jx198/iris_arxiv/experiments/arxiv_llm_teacher_loss/v1_one_third"
+
+[target_descriptions]
+"cs.AI" = "Artificial intelligence research centered on learning, reasoning, planning, search, perception, language, agents, or intelligent decision-making."
+"cs.DS" = "Data Structures and Algorithms research centered on designing or analyzing algorithms, data structures, complexity, correctness, or general algorithmic properties."
+"cs.PL" = "Programming Languages research centered on language design, types, semantics, parsing, compilers, program analysis, verification, or language implementation."
+
+[subset]
+train_fraction = 0.3333333333333333
+seed = 42
+reuse_score_glob = "/work/jx198/iris_arxiv/experiments/arxiv_llm_teacher_loss/v1/qwen_scores.target_evidence_v2.shard-*-of-008.jsonl"
+
+[export]
+# Seven shards match the seven RTX 5000 Ada GPUs that were available in the
+# first run. This avoids one large eighth shard waiting for a GPU.
+num_shards = 7
+
+[teacher]
+model_id = "Qwen/Qwen3-8B"
+prompt_version = "target_evidence_v2"
+prompt_path = "../arxiv_llm_rerank_eval/prompts/target_evidence_v2.txt"
+enable_thinking = false
+do_sample = false
+temperature = 0.0
+max_new_tokens = 192
+batch_size = 12
+
+[score]
+tie_breaker_weight = 0.1
+
+[training]
+teacher_pair_temperature = 1.0
+teacher_min_score_gap = 0.05
+teacher_scores_path = "/work/jx198/iris_arxiv/experiments/arxiv_llm_teacher_loss/v1_one_third/teacher_scores.parquet"
+checkpoint_dir = "/work/jx198/iris_arxiv/checkpoints/teacher_loss_v1_one_third"
+metadata_dir = "/work/jx198/iris_arxiv/results/teacher_loss_v1_one_third"
+
+[[training.variants]]
+name = "baseline"
+enabled = false
+weight = 0.0
+score_mode = "real"
+
+[[training.variants]]
+name = "shuffled_w005"
+enabled = true
+weight = 0.05
+score_mode = "shuffled"
+
+[[training.variants]]
+name = "teacher_w005"
+enabled = true
+weight = 0.05
+score_mode = "real"

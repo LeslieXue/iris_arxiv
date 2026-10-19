@@ -37,6 +37,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--iris-config", type=Path, required=True)
     parser.add_argument("--variant", required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument(
+        "--split",
+        choices=("train", "validation", "test"),
+        default="test",
+        help="Dataset split on which to measure Qwen-score alignment",
+    )
     return parser.parse_args()
 
 
@@ -78,6 +84,14 @@ def main() -> None:
     find_variant(experiment, args.variant)
     training = experiment["training"]
     cfg = get_config(args.iris_config)
+    subset = experiment.get("subset", {})
+    if subset:
+        subset_seed = int(subset["seed"])
+        if cfg.seed != subset_seed:
+            raise ValueError(
+                f"IRIS seed {cfg.seed} does not match subset seed {subset_seed}"
+            )
+        cfg.trainer.train_fraction = float(subset["train_fraction"])
     checkpoint = Path(training["checkpoint_dir"]) / f"{args.variant}.pt"
     if not checkpoint.is_file():
         raise FileNotFoundError(checkpoint)
@@ -92,7 +106,7 @@ def main() -> None:
     )
     state = torch.load(checkpoint, map_location="cpu", weights_only=True)
     queries = state["queries"].numpy()
-    dataset = loaders.test.dataset
+    dataset = getattr(loaders, args.split).dataset
     dataset.queries = queries  # type: ignore
 
     selected_frames = []
@@ -137,7 +151,8 @@ def main() -> None:
         "experiment_version": experiment["version"],
         "variant": args.variant,
         "checkpoint": str(checkpoint),
-        "test_documents": len(document_ids),
+        "alignment_split": args.split,
+        "alignment_documents": len(document_ids),
         "overall": summarize(scored),
         "per_query": {
             str(query_id): summarize(

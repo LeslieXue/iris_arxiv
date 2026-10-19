@@ -6,16 +6,17 @@ import numpy as np
 import polars as pl
 import torch
 from lancedb.table import LanceTable
-from sklearn.model_selection import train_test_split
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
 
 from iris.config import Config
+from iris.sampling import subsample_train_ids, train_val_test_split
 
 
 def load_teacher_scores(
     cfg: Config,
     tbl: LanceTable,
+    required_document_ids: np.ndarray,
 ) -> dict[tuple[int, int], float] | None:
     teacher_cfg = cfg.teacher_loss
 
@@ -49,7 +50,11 @@ def load_teacher_scores(
         tbl.to_lance()
         .scanner(columns=["id", "chunk_id"])
         .to_table()
-    ).rename({"id": "document_id"})
+    ).rename({"id": "document_id"}).filter(
+        pl.col("document_id").is_in(
+            pl.Series(required_document_ids, dtype=pl.Int64)
+        )
+    )
     missing = database_keys.join(
         scores.select("document_id", "chunk_id"),
         on=["document_id", "chunk_id"],
@@ -264,24 +269,6 @@ class DataLoaders:
     test: DataLoader
 
 
-def train_val_test_split(data: np.ndarray, labels: np.ndarray, seed: int):
-    train, temp, _, temp_labels = train_test_split(
-        data,
-        labels,
-        test_size=0.2,
-        shuffle=True,
-        random_state=seed,
-        stratify=labels,
-    )
-    val, test = train_test_split(
-        temp,
-        test_size=0.5,
-        random_state=seed,
-        stratify=temp_labels,
-    )
-    return train, val, test
-
-
 def make_loaders(
     cfg: Config,
     tbl: LanceTable,
@@ -293,9 +280,26 @@ def make_loaders(
     ids = df["id"].to_numpy()
     labels = df["label"].to_numpy()
     train, val, test = train_val_test_split(ids, labels=labels, seed=cfg.seed)
+    label_by_id = {
+        int(document_id): int(label)
+        for document_id, label in zip(ids, labels, strict=True)
+    }
+    train_labels = np.array(
+        [label_by_id[int(document_id)] for document_id in train]
+    )
+    train = subsample_train_ids(
+        train_ids=train,
+        train_labels=train_labels,
+        fraction=cfg.trainer.train_fraction,
+        seed=cfg.seed,
+    )
     ini_queries = get_ini_queries(tbl=tbl, cfg=cfg)
     teacher_scores = (
-        load_teacher_scores(cfg=cfg, tbl=tbl)
+        load_teacher_scores(
+            cfg=cfg,
+            tbl=tbl,
+            required_document_ids=train,
+        )
         if include_teacher_scores
         else None
     )

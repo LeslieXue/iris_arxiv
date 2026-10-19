@@ -47,6 +47,15 @@ def main() -> None:
     training = experiment["training"]
     cfg = get_config(args.iris_config)
 
+    subset = experiment.get("subset", {})
+    if subset:
+        subset_seed = int(subset["seed"])
+        if cfg.seed != subset_seed:
+            raise ValueError(
+                f"IRIS seed {cfg.seed} does not match subset seed {subset_seed}"
+            )
+        cfg.trainer.train_fraction = float(subset["train_fraction"])
+
     checkpoint_dir = Path(training["checkpoint_dir"])
     metadata_dir = Path(training["metadata_dir"])
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -80,6 +89,7 @@ def main() -> None:
         "checkpoint": str(cfg.trainer.checkpoint),
         "seed": cfg.seed,
         "epochs": cfg.trainer.max_epochs,
+        "train_fraction": cfg.trainer.train_fraction,
         "teacher_loss": cfg.teacher_loss.model_dump(mode="json"),
         "status": "started",
     }

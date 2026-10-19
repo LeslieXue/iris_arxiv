@@ -51,6 +51,7 @@ class TrainerConfig(BaseModel):
     ignore_index: int
     gradient_clip: float
     temperature: float
+    train_fraction: float = Field(default=1.0, gt=0.0, le=1.0)
     device: str = "cpu"
 
 
