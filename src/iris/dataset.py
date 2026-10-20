@@ -276,7 +276,9 @@ def make_loaders(
 ):
     lance_tbl = tbl.to_lance()
     duckdb.register("lance_tbl", lance_tbl)
-    df = duckdb.sql("SELECT DISTINCT id, label FROM lance_tbl").to_df()
+    df = duckdb.sql(
+        "SELECT DISTINCT id, label FROM lance_tbl ORDER BY id"
+    ).to_df()
     ids = df["id"].to_numpy()
     labels = df["label"].to_numpy()
     train, val, test = train_val_test_split(ids, labels=labels, seed=cfg.seed)
