@@ -10,6 +10,14 @@ import polars as pl
 import tomllib
 
 
+DISPLAY_NAMES = {
+    "baseline": "Baseline",
+    "teacher_w001": "Teacher weak",
+    "teacher_w005": "Teacher medium",
+    "teacher_w010": "Teacher strong",
+}
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--experiment-config", type=Path, required=True)
@@ -48,25 +56,31 @@ def main() -> None:
     for variant in experiment["training"]["variants"]:
         name = variant["name"]
         test = load_json(results_dir / f"{name}.test_metrics.json")
-        alignment = load_json(results_dir / f"{name}.teacher_alignment.json")
+        alignment = load_json(
+            results_dir / f"{name}.teacher_alignment.json"
+        )
         overall = alignment["overall"]
+        per_class = alignment["per_class"]
+
         rows.append(
             {
+                "model": DISPLAY_NAMES[name],
                 "variant": name,
-                "teacher_enabled": bool(variant["enabled"]),
-                "score_mode": variant["score_mode"],
-                "teacher_weight": float(variant["weight"]),
-                "accuracy": test["accuracy"],
+                "lambda": float(variant["weight"]),
                 "balanced_accuracy": test["balanced_accuracy"],
+                "accuracy": test["accuracy"],
                 "macro_f1": test["macro_f1"],
-                "cross_entropy": test["cross_entropy"],
-                "mean_teacher_utility": overall["mean_teacher_utility"],
-                "mean_target_evidence": overall["mean_target_evidence"],
-                "high_evidence_rate": overall["high_evidence_rate"],
-                "zero_evidence_rate": overall["zero_evidence_rate"],
-                "keyword_only_risk": overall["mean_keyword_only_risk"],
-                "direct_label_disclosure": overall[
-                    "mean_direct_label_disclosure"
+                "mean_teacher_utility": overall[
+                    "mean_teacher_utility"
+                ],
+                "cs_ai_mean_teacher_utility": per_class["cs.AI"][
+                    "mean_teacher_utility"
+                ],
+                "cs_ds_mean_teacher_utility": per_class["cs.DS"][
+                    "mean_teacher_utility"
+                ],
+                "cs_pl_mean_teacher_utility": per_class["cs.PL"][
+                    "mean_teacher_utility"
                 ],
             }
         )

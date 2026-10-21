@@ -73,7 +73,6 @@ therefore reflect the accumulated teacher preference.
 | Variant | Teacher scores | Weight | Purpose |
 | --- | --- | ---: | --- |
 | `baseline` | disabled | 0.00 | same-code IRIS baseline |
-| `shuffled_w005` | shuffled within each document | 0.05 | control for adding a similarly distributed but meaningless score |
 | `teacher_w001` | real | 0.01 | weak teacher bias |
 | `teacher_w005` | real | 0.05 | medium teacher bias |
 | `teacher_w010` | real | 0.10 | stronger teacher bias |
@@ -91,12 +90,15 @@ Each variant produces two kinds of test-set output:
    high-evidence rate, zero-evidence rate, and shortcut-risk fields among the
    chunks selected by the learned queries.
 
+Mean teacher utility is first averaged across the chunks selected for each
+test document and then averaged across documents. The same document-level
+aggregation is reported overall and separately for `cs.AI`, `cs.DS`, and
+`cs.PL`.
+
 Teacher alignment only shows that the training objective changed retrieval in
 the requested direction. Because Qwen supplies both the training preference
 and this diagnostic, it is not independent proof that the explanations are
-better. The shuffled-score control helps distinguish meaningful teacher signal
-from regularization or optimization effects.
-
+better.
 The total training loss is not compared across variants because teacher-enabled
 runs contain an extra nonnegative term. Logs report classification loss, the
 original query penalty, raw teacher-ranking loss, and weighted teacher loss
@@ -104,14 +106,14 @@ separately. Cross-entropy and held-out task metrics remain comparable.
 
 ## DCC pipeline
 
-The pipeline uses eight Qwen scoring shards, then trains and evaluates all five
+The pipeline uses eight Qwen scoring shards, then trains and evaluates all four
 IRIS variants as Slurm arrays. From the repository root on DCC:
 
 ```bash
 bash slurm/arxiv_llm_teacher_loss/submit_full_experiment.sh
 ```
 
-The command prints all five Slurm job IDs. Dependencies enforce this order:
+The command prints all six Slurm pipeline job IDs. Dependencies enforce this order:
 
 ```text
 export every chunk
@@ -128,4 +130,6 @@ Final comparison files are written to:
 /work/jx198/iris_arxiv/results/teacher_loss_v1/comparison.json
 /work/jx198/iris_arxiv/results/teacher_loss_v1/comparison.csv
 /work/jx198/iris_arxiv/results/teacher_loss_v1/comparison.md
+/work/jx198/iris_arxiv/results/teacher_loss_v1/primary_tradeoff.png
+/work/jx198/iris_arxiv/results/teacher_loss_v1/primary_tradeoff.pdf
 ```

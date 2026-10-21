@@ -45,12 +45,6 @@ weight = 0.0
 score_mode = "real"
 
 [[training.variants]]
-name = "shuffled_w005"
-enabled = true
-weight = 0.05
-score_mode = "shuffled"
-
-[[training.variants]]
 name = "teacher_w001"
 enabled = true
 weight = 0.01

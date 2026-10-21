@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --time=24:00:00
-#SBATCH --array=0-4%5
+#SBATCH --array=0-3%4
 #SBATCH --output=/work/jx198/iris_arxiv/logs/teacher-train-%A_%a.out
 #SBATCH --error=/work/jx198/iris_arxiv/logs/teacher-train-%A_%a.err
 
@@ -28,7 +28,7 @@ export POLARS_MAX_THREADS="${SLURM_CPUS_PER_TASK:-8}"
 IRIS_PYTHON=/work/jx198/iris_arxiv/conda/envs/iris-dcc-v2/bin/python
 EXPERIMENT_CONFIG=experiments/arxiv_llm_teacher_loss/config.toml
 IRIS_CONFIG=config.arxiv.dcc.train.toml
-VARIANTS=(baseline shuffled_w005 teacher_w001 teacher_w005 teacher_w010)
+VARIANTS=(baseline teacher_w001 teacher_w005 teacher_w010)
 VARIANT="${VARIANTS[${SLURM_ARRAY_TASK_ID}]}"
 
 mkdir -p /work/jx198/iris_arxiv/logs

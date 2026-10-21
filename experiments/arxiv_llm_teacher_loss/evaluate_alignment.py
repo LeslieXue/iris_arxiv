@@ -30,6 +30,12 @@ SCORE_COLUMNS = [
     "keyword_only_risk",
 ]
 
+LABEL_NAMES = {
+    0: "cs.AI",
+    1: "cs.DS",
+    2: "cs.PL",
+}
+
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -52,28 +58,78 @@ def load_toml(path: Path) -> dict:
 
 
 def summarize(frame: pl.DataFrame) -> dict:
+    """Summarize retrieval quality with equal weight for each document."""
     distribution = Counter(frame["target_evidence"].to_list())
+
+    document_level = frame.group_by("document_id").agg(
+        pl.len().alias("selected_chunks"),
+        pl.col("teacher_utility")
+        .mean()
+        .alias("mean_teacher_utility"),
+        pl.col("target_evidence")
+        .mean()
+        .alias("mean_target_evidence"),
+        (pl.col("target_evidence") >= 3)
+        .cast(pl.Float64)
+        .mean()
+        .alias("high_evidence_rate"),
+        (pl.col("target_evidence") == 0)
+        .cast(pl.Float64)
+        .mean()
+        .alias("zero_evidence_rate"),
+        pl.col("substantive_relevance")
+        .mean()
+        .alias("mean_substantive_relevance"),
+        pl.col("specificity")
+        .mean()
+        .alias("mean_specificity"),
+        pl.col("context_completeness")
+        .mean()
+        .alias("mean_context_completeness"),
+        pl.col("direct_label_disclosure")
+        .mean()
+        .alias("mean_direct_label_disclosure"),
+        pl.col("keyword_only_risk")
+        .mean()
+        .alias("mean_keyword_only_risk"),
+    )
+
     return {
+        "documents": document_level.height,
         "selected_chunks": frame.height,
-        "mean_teacher_utility": frame["teacher_utility"].mean(),
-        "mean_target_evidence": frame["target_evidence"].mean(),
-        "high_evidence_rate": frame.filter(
-            pl.col("target_evidence") >= 3
-        ).height
-        / frame.height,
-        "zero_evidence_rate": frame.filter(
-            pl.col("target_evidence") == 0
-        ).height
-        / frame.height,
-        "mean_substantive_relevance": frame["substantive_relevance"].mean(),
-        "mean_specificity": frame["specificity"].mean(),
-        "mean_context_completeness": frame["context_completeness"].mean(),
-        "mean_direct_label_disclosure": frame[
-            "direct_label_disclosure"
-        ].mean(),
-        "mean_keyword_only_risk": frame["keyword_only_risk"].mean(),
+        "mean_selected_chunks_per_document": (
+            document_level["selected_chunks"].mean()
+        ),
+        "mean_teacher_utility": (
+            document_level["mean_teacher_utility"].mean()
+        ),
+        "mean_target_evidence": (
+            document_level["mean_target_evidence"].mean()
+        ),
+        "high_evidence_rate": (
+            document_level["high_evidence_rate"].mean()
+        ),
+        "zero_evidence_rate": (
+            document_level["zero_evidence_rate"].mean()
+        ),
+        "mean_substantive_relevance": (
+            document_level["mean_substantive_relevance"].mean()
+        ),
+        "mean_specificity": (
+            document_level["mean_specificity"].mean()
+        ),
+        "mean_context_completeness": (
+            document_level["mean_context_completeness"].mean()
+        ),
+        "mean_direct_label_disclosure": (
+            document_level["mean_direct_label_disclosure"].mean()
+        ),
+        "mean_keyword_only_risk": (
+            document_level["mean_keyword_only_risk"].mean()
+        ),
         "target_evidence_distribution": {
-            str(score): int(distribution.get(score, 0)) for score in range(5)
+            str(score): int(distribution.get(score, 0))
+            for score in range(5)
         },
     }
 
@@ -115,6 +171,7 @@ def main() -> None:
         chunks = dataset.search_chunks(int(document_id)).select(
             pl.col("id").alias("document_id"),
             "chunk_id",
+            "label",
             "query_id",
             "rank",
             "_distance",
@@ -153,7 +210,16 @@ def main() -> None:
         "checkpoint": str(checkpoint),
         "alignment_split": args.split,
         "alignment_documents": len(document_ids),
+        "alignment_aggregation": (
+            "Mean within each document, then mean across documents"
+        ),
         "overall": summarize(scored),
+        "per_class": {
+            label_name: summarize(
+                scored.filter(pl.col("label") == label_id)
+            )
+            for label_id, label_name in LABEL_NAMES.items()
+        },
         "per_query": {
             str(query_id): summarize(
                 scored.filter(pl.col("query_id") == query_id)

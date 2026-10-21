@@ -22,4 +22,13 @@ cd /hpc/home/jx198/iris_arxiv
 "${IRIS_PYTHON}" experiments/arxiv_llm_teacher_loss/summarize_results.py \
     --experiment-config experiments/arxiv_llm_teacher_loss/config.toml
 
-echo "Teacher-loss result summary completed."
+RESULT_DIR=/work/jx198/iris_arxiv/results/teacher_loss_v1
+
+export MPLCONFIGDIR=/work/jx198/iris_arxiv/matplotlib-cache
+mkdir -p "${MPLCONFIGDIR}"
+
+"${IRIS_PYTHON}" experiments/arxiv_llm_teacher_loss/plot_results.py \
+    --comparison "${RESULT_DIR}/comparison.csv" \
+    --output-dir "${RESULT_DIR}"
+
+echo "Teacher-loss result summary and plotting completed."
