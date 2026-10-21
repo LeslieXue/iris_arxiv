@@ -31,9 +31,15 @@ def load_teacher_scores(
             f"Teacher score table not found: {teacher_cfg.scores_path}"
         )
 
+    required_ids = pl.Series(
+        "document_id",
+        required_document_ids,
+        dtype=pl.Int64,
+    )
     scores = (
         pl.read_parquet(teacher_cfg.scores_path)
         .select("document_id", "chunk_id", "teacher_utility")
+        .filter(pl.col("document_id").is_in(required_ids))
         .sort("document_id", "chunk_id")
     )
     duplicate_count = scores.select(
@@ -51,9 +57,7 @@ def load_teacher_scores(
         .scanner(columns=["id", "chunk_id"])
         .to_table()
     ).rename({"id": "document_id"}).filter(
-        pl.col("document_id").is_in(
-            pl.Series(required_document_ids, dtype=pl.Int64)
-        )
+        pl.col("document_id").is_in(required_ids)
     )
     missing = database_keys.join(
         scores.select("document_id", "chunk_id"),
