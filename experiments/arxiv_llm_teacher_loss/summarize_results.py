@@ -15,6 +15,11 @@ DISPLAY_NAMES = {
     "teacher_w001": "Teacher weak",
     "teacher_w005": "Teacher medium",
     "teacher_w010": "Teacher strong",
+    "teacher_w020": "Teacher lambda 0.20",
+    "teacher_w040": "Teacher lambda 0.40",
+    "teacher_w060": "Teacher lambda 0.60",
+    "teacher_w080": "Teacher lambda 0.80",
+    "teacher_w100": "Teacher lambda 1.00",
 }
 
 

@@ -17,8 +17,28 @@ from matplotlib.axes import Axes
 from matplotlib.ticker import PercentFormatter
 
 
-MODEL_LABELS = ["Baseline", "Weak", "Medium", "Strong"]
-LAMBDA_LABELS = ["0", "0.01", "0.05", "0.10"]
+LAMBDA_LABELS = [
+    "0",
+    "0.01",
+    "0.05",
+    "0.10",
+    "0.20",
+    "0.40",
+    "0.60",
+    "0.80",
+    "1.00",
+]
+EXPECTED_LAMBDAS = [
+    0.0,
+    0.01,
+    0.05,
+    0.10,
+    0.20,
+    0.40,
+    0.60,
+    0.80,
+    1.00,
+]
 
 COLORS = {
     "balanced_accuracy": "#0072B2",
@@ -114,19 +134,14 @@ def style_axis(ax: Axes) -> None:
 
 
 def set_lambda_axis(ax: Axes) -> None:
-    positions = list(range(4))
-    labels = [
-        f"{value}\n{name}"
-        for value, name in zip(
-            LAMBDA_LABELS,
-            MODEL_LABELS,
-        )
-    ]
-
-    ax.set_xticks(positions, labels)
+    positions = list(range(len(LAMBDA_LABELS)))
+    ax.set_xticks(positions)
+    ax.set_xticklabels(
+        LAMBDA_LABELS,
+        rotation=35,
+        ha="right",
+    )
     ax.set_xlabel(r"Teacher-loss weight $\lambda$")
-    ax.margins(x=0.08)
-
 
 def overlay_baseline(
     ax: Axes,
@@ -347,9 +362,14 @@ def plot_tradeoff(
 
     point_colors = [
         "#9CA3AF",
-        COLORS["cs.AI"],
-        COLORS["balanced_accuracy"],
-        COLORS["strong"],
+        "#56B4E9",
+        "#0072B2",
+        "#009E73",
+        "#F0E442",
+        "#E69F00",
+        "#D55E00",
+        "#CC79A7",
+        "#7A5195",
     ]
 
     ax.plot(
@@ -387,17 +407,13 @@ def plot_tradeoff(
             zorder=3,
         )
 
+        is_last = index == len(utility) - 1
         offset = (
-            (8, 8)
-            if index != 3
-            else (-8, 8)
+            (-8, 8)
+            if is_last
+            else (6, 8 if index % 2 == 0 else -13)
         )
-
-        alignment = (
-            "left"
-            if index != 3
-            else "right"
-        )
+        alignment = "right" if is_last else "left"
 
         ax.annotate(
             rf"$\lambda$={lambda_label}",
@@ -502,9 +518,9 @@ def load_comparison(
             key=lambda row: float(row["lambda"]),
         )
 
-    if len(rows) != 4:
+    if len(rows) != len(EXPECTED_LAMBDAS):
         raise ValueError(
-            "Expected four experiment variants; "
+            f"Expected {len(EXPECTED_LAMBDAS)} experiment variants; "
             f"found {len(rows)}"
         )
 
@@ -526,12 +542,7 @@ def main() -> None:
     frame = load_comparison(args.comparison)
 
     observed = frame["lambda"]
-    expected = [
-        0.0,
-        0.01,
-        0.05,
-        0.10,
-    ]
+    expected = EXPECTED_LAMBDAS
 
     if not all(
         math.isclose(

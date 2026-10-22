@@ -61,3 +61,34 @@ name = "teacher_w010"
 enabled = true
 weight = 0.10
 score_mode = "real"
+
+
+[[training.variants]]
+name = "teacher_w020"
+enabled = true
+weight = 0.20
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w040"
+enabled = true
+weight = 0.40
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w060"
+enabled = true
+weight = 0.60
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w080"
+enabled = true
+weight = 0.80
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w100"
+enabled = true
+weight = 1.00
+score_mode = "real"
