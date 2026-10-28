@@ -48,6 +48,7 @@ class OptimizerConfig(BaseModel):
 class TrainerConfig(BaseModel):
     max_epochs: int
     checkpoint: Path
+    resume_checkpoint: Path | None = None
     ignore_index: int
     gradient_clip: float
     temperature: float

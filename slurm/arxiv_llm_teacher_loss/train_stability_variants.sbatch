@@ -8,6 +8,8 @@
 #SBATCH --mem=64G
 #SBATCH --time=2-00:00:00
 #SBATCH --array=0-49%4
+#SBATCH --requeue
+#SBATCH --open-mode=append
 #SBATCH --output=/work/jx198/iris_arxiv/logs/stability-train-%A_%a.out
 #SBATCH --error=/work/jx198/iris_arxiv/logs/stability-train-%A_%a.err
 
@@ -47,6 +49,7 @@ echo "Host: $(hostname)"
 echo "Variant: ${VARIANT}"
 echo "Training seed: ${TRAINING_SEED}"
 echo "Fixed split seed: 42"
+echo "SLURM_RESTART_COUNT=${SLURM_RESTART_COUNT:-0}"
 echo "CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-<unset>}"
 nvidia-smi
 

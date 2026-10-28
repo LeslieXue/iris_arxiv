@@ -10,6 +10,7 @@ output_dir = "/work/jx198/iris_arxiv/experiments/arxiv_llm_teacher_loss/v1"
 [training]
 split_seed = 42
 seeds = [42, 123, 2026, 3407, 10007]
+resume = true
 teacher_pair_temperature = 1.0
 teacher_min_score_gap = 0.05
 teacher_scores_path = "/work/jx198/iris_arxiv/experiments/arxiv_llm_teacher_loss/v1/teacher_scores.parquet"

@@ -1,5 +1,8 @@
 import json
+import os
+import random
 
+import numpy as np
 import torch
 import torch.nn as nn
 from lancedb.table import LanceTable
@@ -48,6 +51,84 @@ class Trainer:
         self.epochs_without_improvement = 0
         self.value = 0.0
         self.metric = metric
+
+    def save_training_state(
+        self,
+        next_epoch: int,
+        early_stopping_triggered: bool,
+    ) -> None:
+        path = self.cfg.resume_checkpoint
+        if path is None:
+            return
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary_path = path.with_suffix(path.suffix + ".tmp")
+        state = {
+            "next_epoch": next_epoch,
+            "model": self.model.state_dict(),
+            "optimizer": self.optimizer.state_dict(),
+            "scheduler": self.scheduler.state_dict(),
+            "best_val_loss": self.best_val_loss,
+            "best_monitor_value": self.best_monitor_value,
+            "best_epoch": self.best_epoch,
+            "epochs_trained": self.epochs_trained,
+            "epochs_without_improvement": self.epochs_without_improvement,
+            "early_stopping_triggered": early_stopping_triggered,
+            "python_rng_state": random.getstate(),
+            "numpy_rng_state": np.random.get_state(),
+            "torch_rng_state": torch.get_rng_state(),
+            "cuda_rng_state_all": (
+                torch.cuda.get_rng_state_all()
+                if torch.cuda.is_available()
+                else None
+            ),
+        }
+        torch.save(state, temporary_path)
+        os.replace(temporary_path, path)
+        self.progress_bar.write(
+            f"Saved resumable training state after epoch {next_epoch}: {path}"
+        )
+
+    def load_training_state(self) -> int:
+        path = self.cfg.resume_checkpoint
+        if path is None or not path.is_file():
+            return 0
+        state = torch.load(
+            path,
+            map_location=self.cfg.device,
+            weights_only=False,
+        )
+        self.model.load_state_dict(state["model"])
+        self.optimizer.load_state_dict(state["optimizer"])
+        self.scheduler.load_state_dict(state["scheduler"])
+        self.best_val_loss = float(state["best_val_loss"])
+        self.best_monitor_value = float(state["best_monitor_value"])
+        self.best_epoch = int(state["best_epoch"])
+        self.epochs_trained = int(state["epochs_trained"])
+        self.epochs_without_improvement = int(
+            state["epochs_without_improvement"]
+        )
+        random.setstate(state["python_rng_state"])
+        np.random.set_state(state["numpy_rng_state"])
+        torch.set_rng_state(state["torch_rng_state"].cpu())
+        cuda_rng_state_all = state["cuda_rng_state_all"]
+        if torch.cuda.is_available() and cuda_rng_state_all is not None:
+            torch.cuda.set_rng_state_all(
+                [rng_state.cpu() for rng_state in cuda_rng_state_all]
+            )
+        queries = self.model.queries.detach().cpu().numpy()
+        self.loaders.train.dataset.queries = queries  # type: ignore
+        next_epoch = int(state["next_epoch"])
+        if bool(state.get("early_stopping_triggered", False)):
+            self.progress_bar.write(
+                f"Training had already early-stopped at epoch {next_epoch}; "
+                "restoring the best checkpoint without further epochs"
+            )
+            return self.max_epochs
+        self.progress_bar.write(
+            f"Resuming training at epoch {next_epoch + 1}/{self.max_epochs} "
+            f"from {path}"
+        )
+        return next_epoch
 
     def update_progress_bar(self) -> None:
         postfix = f"Train loss: {self.train_loss:.3f}"
@@ -142,8 +223,14 @@ class Trainer:
 
     def train(self) -> None:
         self.model.to(self.cfg.device)
-        for epoch in range(self.max_epochs):
-            if self.train_epoch(epoch):
+        start_epoch = self.load_training_state()
+        for epoch in range(start_epoch, self.max_epochs):
+            should_stop = self.train_epoch(epoch)
+            self.save_training_state(
+                next_epoch=epoch + 1,
+                early_stopping_triggered=should_stop,
+            )
+            if should_stop:
                 break
         self.progress_bar.close()
         best_weights = torch.load(

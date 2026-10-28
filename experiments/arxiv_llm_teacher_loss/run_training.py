@@ -87,6 +87,10 @@ def main() -> None:
     if args.training_seed is not None:
         run_name = f"{args.variant}.seed-{training_seed}"
     cfg.trainer.checkpoint = checkpoint_dir / f"{run_name}.pt"
+    if bool(training.get("resume", False)):
+        cfg.trainer.resume_checkpoint = (
+            checkpoint_dir / f"{run_name}.resume.pt"
+        )
     cfg.teacher_loss.enabled = bool(variant["enabled"])
     cfg.teacher_loss.scores_path = Path(training["teacher_scores_path"])
     cfg.teacher_loss.weight = float(variant["weight"])
@@ -114,6 +118,15 @@ def main() -> None:
         "variant": args.variant,
         "iris_config": str(args.iris_config),
         "checkpoint": str(cfg.trainer.checkpoint),
+        "resume_checkpoint": (
+            str(cfg.trainer.resume_checkpoint)
+            if cfg.trainer.resume_checkpoint is not None
+            else None
+        ),
+        "resuming": (
+            cfg.trainer.resume_checkpoint is not None
+            and cfg.trainer.resume_checkpoint.is_file()
+        ),
         "split_seed": cfg.seed,
         "training_seed": training_seed,
         "max_epochs": cfg.trainer.max_epochs,
