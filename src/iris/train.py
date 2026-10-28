@@ -40,8 +40,12 @@ class Trainer:
         self.cfg = cfg
         self.train_loss = float("inf")
         self.val_loss = float("inf")
+        self.val_classification_loss = float("inf")
         self.best_val_loss = float("inf")
+        self.best_monitor_value = float("inf")
         self.best_epoch = 0
+        self.epochs_trained = 0
+        self.epochs_without_improvement = 0
         self.value = 0.0
         self.metric = metric
 
@@ -76,7 +80,7 @@ class Trainer:
         self.loaders.train.dataset.queries = queries  # type: ignore
         return {name: value.detach().item() for name, value in losses.items()}
 
-    def train_epoch(self, epoch: int) -> None:
+    def train_epoch(self, epoch: int) -> bool:
         self.model.train()
         totals: dict[str, float] = {}
         for step, batch in enumerate(self.loaders.train, start=1):
@@ -87,15 +91,29 @@ class Trainer:
             self.update_progress_bar()
         self.validate()
         self.scheduler.step()
-        if self.val_loss < self.best_val_loss:
+        self.epochs_trained = epoch + 1
+        monitor_value = (
+            self.val_classification_loss
+            if self.cfg.early_stopping_metric == "classification_loss"
+            else self.val_loss
+        )
+        improved = (
+            monitor_value
+            < self.best_monitor_value - self.cfg.early_stopping_min_delta
+        )
+        if improved:
+            self.best_monitor_value = monitor_value
             self.best_val_loss = self.val_loss
             self.best_epoch = epoch + 1
+            self.epochs_without_improvement = 0
             self.cfg.checkpoint.parent.mkdir(parents=True, exist_ok=True)
             torch.save(self.model.state_dict(), self.cfg.checkpoint)
             self.progress_bar.write(
                 f"Saved best checkpoint at epoch {self.best_epoch}: "
                 f"{self.cfg.checkpoint}"
             )
+        else:
+            self.epochs_without_improvement += 1
         self.progress_bar.write(
             f"Epoch {epoch + 1}/{self.max_epochs}: "
             f"train_loss={self.train_loss:.6f}, "
@@ -104,13 +122,29 @@ class Trainer:
             f"train_teacher={totals['teacher_ranking'] / step:.6f}, "
             f"train_weighted_teacher={totals['weighted_teacher'] / step:.6f}, "
             f"val_loss={self.val_loss:.6f}, "
+            f"val_ce={self.val_classification_loss:.6f}, "
             f"val_acc={self.value:.6f}"
         )
+        patience = self.cfg.early_stopping_patience
+        should_stop = (
+            patience is not None
+            and epoch + 1 >= self.cfg.minimum_epochs
+            and self.epochs_without_improvement >= patience
+        )
+        if should_stop:
+            self.progress_bar.write(
+                "Early stopping at epoch "
+                f"{epoch + 1}: no improvement in "
+                f"{self.cfg.early_stopping_metric} for "
+                f"{self.epochs_without_improvement} epochs"
+            )
+        return should_stop
 
     def train(self) -> None:
         self.model.to(self.cfg.device)
         for epoch in range(self.max_epochs):
-            self.train_epoch(epoch)
+            if self.train_epoch(epoch):
+                break
         self.progress_bar.close()
         best_weights = torch.load(
             self.cfg.checkpoint,
@@ -126,17 +160,25 @@ class Trainer:
         self.model.eval()
         queries = self.model.queries.detach().cpu().numpy()
         self.loaders.validation.dataset.queries = queries  # type: ignore
-        loss = 0.0
+        total_loss = 0.0
+        classification_loss = 0.0
         for inputs, labels, padding_mask, _, _ in self.loaders.validation:
             inputs = inputs.to(self.cfg.device)
             labels = labels.to(self.cfg.device)
             padding_mask = padding_mask.to(self.cfg.device)
             outputs = self.model(inputs, padding_mask)
-            loss += self.criterion(outputs, labels, self.model.queries).item()
+            components = self.criterion.components(
+                outputs,
+                labels,
+                self.model.queries,
+            )
+            total_loss += components["total"].item()
+            classification_loss += components["classification"].item()
             preds = outputs.argmax(dim=1)
             self.metric.update(preds, labels)
-        loss /= len(self.loaders.validation)
-        self.val_loss = loss
+        num_batches = len(self.loaders.validation)
+        self.val_loss = total_loss / num_batches
+        self.val_classification_loss = classification_loss / num_batches
         self.value = self.metric.compute().item()
         self.metric.reset()
 
@@ -213,3 +255,4 @@ def train_model(cfg: Config, tbl: LanceTable, use_best: bool = False):
         cfg = set_hyperparams(cfg=cfg, **hyperparameters)
     trainer = make_trainer(cfg=cfg, tbl=tbl)
     trainer.train()
+    return trainer

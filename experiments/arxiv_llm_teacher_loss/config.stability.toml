@@ -1,0 +1,77 @@
+version = "v2_stability_log_lambda"
+
+[database]
+path = "/work/jx198/iris_arxiv/data/db"
+table_name = "arxiv11"
+
+[paths]
+output_dir = "/work/jx198/iris_arxiv/experiments/arxiv_llm_teacher_loss/v1"
+
+[training]
+split_seed = 42
+seeds = [42, 123, 2026, 3407, 10007]
+teacher_pair_temperature = 1.0
+teacher_min_score_gap = 0.05
+teacher_scores_path = "/work/jx198/iris_arxiv/experiments/arxiv_llm_teacher_loss/v1/teacher_scores.parquet"
+checkpoint_dir = "/work/jx198/iris_arxiv/checkpoints/teacher_loss_v2_stability"
+metadata_dir = "/work/jx198/iris_arxiv/results/teacher_loss_v2_stability"
+
+[[training.variants]]
+name = "baseline"
+enabled = false
+weight = 0.0
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w0025"
+enabled = true
+weight = 0.025
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w005"
+enabled = true
+weight = 0.05
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w010"
+enabled = true
+weight = 0.10
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w020"
+enabled = true
+weight = 0.20
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w040"
+enabled = true
+weight = 0.40
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w080"
+enabled = true
+weight = 0.80
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w160"
+enabled = true
+weight = 1.60
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w320"
+enabled = true
+weight = 3.20
+score_mode = "real"
+
+[[training.variants]]
+name = "teacher_w640"
+enabled = true
+weight = 6.40
+score_mode = "real"

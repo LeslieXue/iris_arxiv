@@ -42,6 +42,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--experiment-config", type=Path, required=True)
     parser.add_argument("--iris-config", type=Path, required=True)
     parser.add_argument("--variant", required=True)
+    parser.add_argument(
+        "--checkpoint",
+        type=Path,
+        default=None,
+        help="Optional checkpoint override for repeated-seed experiments",
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
         "--split",
@@ -148,7 +154,9 @@ def main() -> None:
                 f"IRIS seed {cfg.seed} does not match subset seed {subset_seed}"
             )
         cfg.trainer.train_fraction = float(subset["train_fraction"])
-    checkpoint = Path(training["checkpoint_dir"]) / f"{args.variant}.pt"
+    checkpoint = args.checkpoint or (
+        Path(training["checkpoint_dir"]) / f"{args.variant}.pt"
+    )
     if not checkpoint.is_file():
         raise FileNotFoundError(checkpoint)
 

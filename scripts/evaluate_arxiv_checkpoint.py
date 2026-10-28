@@ -14,6 +14,7 @@ from sklearn.metrics import (
     confusion_matrix,
     f1_score,
     precision_recall_fscore_support,
+    roc_auc_score,
 )
 from transformers import AutoConfig
 
@@ -85,6 +86,7 @@ def main():
     model.eval()
 
     predictions = []
+    probabilities = []
     targets = []
     ignored_document_ids = []
     cross_entropy_sum = 0.0
@@ -123,6 +125,7 @@ def main():
         ).item()
         example_count += batch_size
         predictions.extend(outputs.argmax(dim=1).cpu().tolist())
+        probabilities.extend(F.softmax(outputs, dim=1).cpu().tolist())
         targets.extend(labels.cpu().tolist())
 
     cross_entropy = cross_entropy_sum / example_count
@@ -138,6 +141,22 @@ def main():
         labels=labels,
         zero_division=0,
     )
+    probability_array = np.asarray(probabilities, dtype=np.float64)
+    target_array = np.asarray(targets)
+    macro_ovr_roc_auc = roc_auc_score(
+        target_array,
+        probability_array,
+        labels=labels,
+        multi_class="ovr",
+        average="macro",
+    )
+    per_class_roc_auc = {
+        label: roc_auc_score(
+            (target_array == label).astype(np.int64),
+            probability_array[:, label],
+        )
+        for label in labels
+    }
 
     lance_table = table.to_lance()
     duckdb.register("chunks", lance_table)
@@ -163,6 +182,7 @@ def main():
             balanced_accuracy_score(targets, predictions)
         ),
         "macro_f1": float(f1_score(targets, predictions, average="macro")),
+        "macro_ovr_roc_auc": float(macro_ovr_roc_auc),
         "cross_entropy": cross_entropy,
         "query_penalty": query_penalty,
         "total_loss": cross_entropy + query_penalty,
@@ -176,6 +196,7 @@ def main():
                 "precision": float(precision[index]),
                 "recall": float(recall[index]),
                 "f1": float(f1[index]),
+                "roc_auc_ovr": float(per_class_roc_auc[label]),
                 "support": int(support[index]),
             }
             for index, label in enumerate(labels)

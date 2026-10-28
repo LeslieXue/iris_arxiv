@@ -52,6 +52,13 @@ class TrainerConfig(BaseModel):
     gradient_clip: float
     temperature: float
     train_fraction: float = Field(default=1.0, gt=0.0, le=1.0)
+    early_stopping_patience: int | None = Field(default=None, ge=1)
+    early_stopping_min_delta: float = Field(default=0.0, ge=0.0)
+    minimum_epochs: int = Field(default=1, ge=1)
+    early_stopping_metric: Literal[
+        "validation_loss",
+        "classification_loss",
+    ] = "validation_loss"
     device: str = "cpu"
 
 
