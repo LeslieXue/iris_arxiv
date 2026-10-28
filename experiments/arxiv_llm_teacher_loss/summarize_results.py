@@ -20,6 +20,9 @@ DISPLAY_NAMES = {
     "teacher_w060": "Teacher lambda 0.60",
     "teacher_w080": "Teacher lambda 0.80",
     "teacher_w100": "Teacher lambda 1.00",
+    "teacher_w120": "Teacher lambda 1.20",
+    "teacher_w140": "Teacher lambda 1.40",
+    "teacher_w160": "Teacher lambda 1.60",
 }
 
 

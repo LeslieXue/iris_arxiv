@@ -28,7 +28,7 @@ export POLARS_MAX_THREADS="${SLURM_CPUS_PER_TASK:-8}"
 IRIS_PYTHON=/work/jx198/iris_arxiv/conda/envs/iris-dcc-v2/bin/python
 EXPERIMENT_CONFIG=experiments/arxiv_llm_teacher_loss/config.toml
 IRIS_CONFIG=config.arxiv.dcc.train.toml
-VARIANTS=(baseline teacher_w001 teacher_w005 teacher_w010 teacher_w020 teacher_w040 teacher_w060 teacher_w080 teacher_w100)
+VARIANTS=(baseline teacher_w001 teacher_w005 teacher_w010 teacher_w020 teacher_w040 teacher_w060 teacher_w080 teacher_w100 teacher_w120 teacher_w140 teacher_w160)
 VARIANT="${VARIANTS[${SLURM_ARRAY_TASK_ID}]}"
 
 mkdir -p /work/jx198/iris_arxiv/logs
