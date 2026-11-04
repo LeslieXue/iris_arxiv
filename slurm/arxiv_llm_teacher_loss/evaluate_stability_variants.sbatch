@@ -7,7 +7,7 @@
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --time=04:00:00
-#SBATCH --array=0-49%4
+#SBATCH --array=50-64%4
 #SBATCH --output=/work/jx198/iris_arxiv/logs/stability-eval-%A_%a.out
 #SBATCH --error=/work/jx198/iris_arxiv/logs/stability-eval-%A_%a.err
 
@@ -28,7 +28,7 @@ export POLARS_MAX_THREADS="${SLURM_CPUS_PER_TASK:-8}"
 IRIS_PYTHON=/work/jx198/iris_arxiv/conda/envs/iris-dcc-v2/bin/python
 EXPERIMENT_CONFIG=experiments/arxiv_llm_teacher_loss/config.stability.toml
 IRIS_CONFIG=config.arxiv.dcc.train.stability.toml
-VARIANTS=(baseline teacher_w0025 teacher_w005 teacher_w010 teacher_w020 teacher_w040 teacher_w080 teacher_w160 teacher_w320 teacher_w640)
+VARIANTS=(baseline teacher_w0025 teacher_w005 teacher_w010 teacher_w020 teacher_w040 teacher_w080 teacher_w160 teacher_w320 teacher_w640 teacher_w1280 teacher_w2560 teacher_w5120)
 SEEDS=(42 123 2026 3407 10007)
 
 NUM_SEEDS=${#SEEDS[@]}

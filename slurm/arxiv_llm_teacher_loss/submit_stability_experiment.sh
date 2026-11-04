@@ -13,6 +13,6 @@ SUMMARY_JOB=$(sbatch --parsable \
     --dependency="afterok:${EVAL_JOB}" \
     slurm/arxiv_llm_teacher_loss/summarize_stability_results.sbatch)
 
-echo "Training array (10 lambdas x 5 seeds): ${TRAIN_JOB}"
+echo "New training array (3 lambdas x 5 seeds, tasks 50-64): ${TRAIN_JOB}"
 echo "Evaluation array: ${EVAL_JOB}"
 echo "Summary job: ${SUMMARY_JOB}"
